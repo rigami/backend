@@ -3,6 +3,7 @@ import { UsersModule } from '../users/module';
 import { AuthModule } from '../auth/module';
 import { SiteParseModule } from '../site-parse/module';
 import { TypegooseModule } from 'nestjs-typegoose';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
     imports: [
@@ -10,6 +11,7 @@ import { TypegooseModule } from 'nestjs-typegoose';
         AuthModule,
         UsersModule,
         SiteParseModule,
+        ScheduleModule.forRoot(),
     ],
 })
 export class AppModule {}
