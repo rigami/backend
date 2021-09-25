@@ -26,8 +26,8 @@ module.exports = {
         "singleQuote": true,
         "trailingComma": "all",
         "tabWidth": 4,
-        "tabSize": 4,
-        "useTabs": false
+        "useTabs": false,
+        "printWidth": 120,
       },
     ],
   },
