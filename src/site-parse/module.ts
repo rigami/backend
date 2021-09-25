@@ -4,6 +4,7 @@ import { SiteParseController } from './controller';
 import { HttpModule } from '@nestjs/axios';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { SiteImage } from './schemas/siteImage';
+import { Site } from './schemas/site';
 
 @Module({
     imports: [
@@ -11,7 +12,7 @@ import { SiteImage } from './schemas/siteImage';
             timeout: 5000,
             maxRedirects: 5,
         }),
-        TypegooseModule.forFeature([SiteImage]),
+        TypegooseModule.forFeature([SiteImage, Site]),
     ],
     providers: [SiteParseService],
     controllers: [SiteParseController],

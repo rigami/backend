@@ -12,11 +12,18 @@ export class SiteParseController {
     @Get('get-meta')
     async getMeta(@Query() query): Promise<Site> {
         this.logger.log(`Start parse site '${query.url}'...`);
-        try {
-            return await this.siteParseService.parseSite(query.url);
-        } catch (e) {
-            this.logger.error(e);
+
+        let site = await this.siteParseService.getSiteFromCache(query.url);
+
+        if (!site) {
+            site = await this.siteParseService.parseSite(query.url);
+
+            await this.siteParseService.saveSiteToCache(site);
+        } else {
+            this.logger.log(`Find site '${query.url}' in cache`);
         }
+
+        return site;
     }
 
     @Get('processing-image')

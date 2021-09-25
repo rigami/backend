@@ -1,18 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { DOMWindow, JSDOM } from 'jsdom';
+import { JSDOM } from 'jsdom';
 import { SiteImage } from './entities/siteImage';
 import { SiteImage as SiteImageScheme } from './schemas/siteImage';
+import { Site as SiteScheme } from './schemas/site';
 import { Site } from './entities/site';
 import Sharp from 'sharp';
 import icoToPng from 'ico-to-png';
 import { InjectModel } from 'nestjs-typegoose';
-import { ReturnModelType } from '@typegoose/typegoose';
+import { Prop, ReturnModelType } from '@typegoose/typegoose';
 import hash from '../utils/hash';
 import fs from 'fs-extra';
 import { Interval } from '@nestjs/schedule';
 import { pick } from 'lodash';
+import { IsArray, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 function getAttr(node, attrName) {
     return node.attributes.getNamedItem(attrName)?.textContent;
@@ -56,6 +58,8 @@ export class SiteParseService {
         private httpService: HttpService,
         @InjectModel(SiteImageScheme)
         private readonly siteImageModel: ReturnModelType<typeof SiteImageScheme>,
+        @InjectModel(SiteScheme)
+        private readonly siteModel: ReturnModelType<typeof SiteScheme>,
     ) {
         siteImageModel.deleteMany({}, (err) => {
             if (err) {
@@ -68,6 +72,15 @@ export class SiteParseService {
                     this.logger.warn('Drop icons cache! Because set development mode');
                 })
                 .catch((err) => this.logger.error(err));
+        });
+
+        siteModel.deleteMany({}, (err) => {
+            if (err) {
+                this.logger.error(err);
+                return;
+            }
+
+            this.logger.warn('Drop sites cache! Because set development mode');
         });
     }
 
@@ -114,11 +127,11 @@ export class SiteParseService {
             const images = Array.from(imageElements)
                 .map((element) => {
                     const image: SiteImage = {
-                        url: '',
                         baseUrl: '',
                         width: undefined,
                         height: undefined,
                         score: 0,
+                        type: '',
                     };
 
                     if (element.tagName.toLowerCase() === 'meta') {
@@ -230,6 +243,52 @@ export class SiteParseService {
         };
     }
 
+    async saveSiteToCache(site: Site): Promise<void> {
+        const saveSite = {
+            url: site.url,
+            rootUrl: site.rootUrl,
+            protocol: site.protocol,
+            host: site.host,
+            title: site.title,
+            description: site.description,
+            images: site.images.map((icon) => ({
+                fileName: hash(icon.baseUrl),
+                baseUrl: icon.baseUrl,
+                score: icon.score,
+                type: icon.type,
+            })),
+        };
+
+        await this.siteModel.create(saveSite);
+        this.logger.log(`Saved site '${site.url}' to cache`);
+    }
+
+    async getSiteFromCache(url: string): Promise<Site> {
+        const site = await this.siteModel.findOne({ url });
+
+        if (site) {
+            return {
+                url: site.url,
+                rootUrl: site.rootUrl,
+                protocol: site.protocol,
+                host: site.host,
+                title: site.title,
+                description: site.description,
+                images: site.images.map(
+                    (image): SiteImage => ({
+                        baseUrl: image.baseUrl,
+                        width: image.width,
+                        height: image.height,
+                        score: image.score,
+                        type: image.type,
+                    }),
+                ),
+            };
+        }
+
+        return null;
+    }
+
     async saveImageToCache(image): Promise<void> {
         const name = hash(image.baseUrl);
 
@@ -259,16 +318,29 @@ export class SiteParseService {
             score: dbRow.score,
             type: dbRow.type,
             data: processingData,
-            createDate: dbRow.createDate,
         };
     }
 
-    @Interval(60 * 1000) // Clear icons cache every 1m
+    @Interval(10 * 1000) // Clear cache every 1m
     async handleClearCache() {
-        this.logger.log('Start clearing obsolete icons cache...');
+        this.logger.log('Start clearing obsolete site and icons cache...');
+
+        let sitesRemove;
 
         try {
-            const removeRows = await this.siteImageModel.find({
+            sitesRemove = await this.siteModel.find({
+                createDate: {
+                    $lte: new Date(),
+                },
+            });
+
+            await this.siteModel.deleteMany({
+                createDate: {
+                    $lte: new Date(),
+                },
+            });
+
+            const imagesRemove = await this.siteImageModel.find({
                 createDate: {
                     $lte: new Date(),
                 },
@@ -280,9 +352,11 @@ export class SiteParseService {
                 },
             });
 
-            await Promise.all(removeRows.map((row) => fs.remove(`cache/images/${row.fileName}.png`)));
+            await Promise.all(imagesRemove.map((row) => fs.remove(`cache/images/${row.fileName}.png`)));
 
-            this.logger.log(`The cache has been cleared. Removed ${removeRows.length} outdated icons`);
+            this.logger.log(
+                `The cache has been cleared. Removed outdated: ${sitesRemove.length} sites ${imagesRemove.length} icons`,
+            );
         } catch (e) {
             this.logger.error(e);
         }

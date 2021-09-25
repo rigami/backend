@@ -12,6 +12,12 @@ export class SiteImage {
     baseUrl!: string;
 
     @Prop()
+    width?: number;
+
+    @Prop()
+    height?: number;
+
+    @Prop()
     score?: number;
 
     @Prop({
