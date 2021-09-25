@@ -240,7 +240,6 @@ export class SiteParseService {
             baseUrl: image.baseUrl,
             score: image.score,
             type: image.type,
-            createDate: new Date(),
         });
         this.logger.log(`Saved image '${image.baseUrl}' to cache with name '${name}'`);
     }

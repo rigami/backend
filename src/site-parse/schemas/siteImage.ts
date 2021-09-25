@@ -5,22 +5,21 @@ export class SiteImage {
     @Prop({
         required: true,
         unique: true,
-        index: true,
     })
-    fileName: string;
+    fileName!: string;
 
     @Prop({ required: true })
-    baseUrl: string;
+    baseUrl!: string;
 
     @Prop()
-    score: number;
+    score?: number;
 
     @Prop({
         required: true,
         enum: ['poster', 'icon', 'small-icon'],
     })
-    type: string;
+    type!: string;
 
-    @Prop({ required: true })
-    createDate: Date;
+    @Prop({ required: true, default: () => new Date() })
+    createDate?: Date;
 }
