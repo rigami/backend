@@ -3,51 +3,15 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { JSDOM } from 'jsdom';
 import { SiteImage } from './entities/siteImage';
-import { SiteImage as SiteImageScheme } from './schemas/siteImage';
 import { Site as SiteScheme } from './schemas/site';
 import { Site } from './entities/site';
-import Sharp from 'sharp';
-import icoToPng from 'ico-to-png';
 import { InjectModel } from 'nestjs-typegoose';
-import { Prop, ReturnModelType } from '@typegoose/typegoose';
-import hash from '../utils/hash';
-import fs from 'fs-extra';
+import { ReturnModelType } from '@typegoose/typegoose';
 import { Interval } from '@nestjs/schedule';
-import { pick } from 'lodash';
-import { IsArray, IsEnum, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { SiteImage as SiteImageScheme } from './schemas/siteImage';
 
 function getAttr(node, attrName) {
     return node.attributes.getNamedItem(attrName)?.textContent;
-}
-
-async function ResizedSharp(p: string | Buffer, { width, height }: { width?: number; height?: number }): Sharp {
-    const instance = Sharp(p);
-
-    const metadata = await instance.metadata();
-
-    const initDensity = metadata.density ?? 72;
-
-    if (metadata.format !== 'svg') {
-        return instance;
-    }
-
-    let wDensity = 0;
-    let hDensity = 0;
-    if (width && metadata.width) {
-        wDensity = (initDensity * width) / metadata.width;
-    }
-
-    if (height && metadata.height) {
-        hDensity = (initDensity * height) / metadata.height;
-    }
-
-    if (!wDensity && !hDensity) {
-        // both width & height are not present and/or
-        // can't detect both metadata.width & metadata.height
-        return instance;
-    }
-
-    return Sharp(p, { density: Math.max(wDensity, hDensity) }).resize(width, height);
 }
 
 @Injectable()
@@ -56,24 +20,11 @@ export class SiteParseService {
 
     constructor(
         private httpService: HttpService,
-        @InjectModel(SiteImageScheme)
-        private readonly siteImageModel: ReturnModelType<typeof SiteImageScheme>,
         @InjectModel(SiteScheme)
         private readonly siteModel: ReturnModelType<typeof SiteScheme>,
+        @InjectModel(SiteImageScheme)
+        private readonly siteImageModel: ReturnModelType<typeof SiteImageScheme>,
     ) {
-        siteImageModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            fs.remove('cache/images')
-                .then(() => {
-                    this.logger.warn('Drop icons cache! Because set development mode');
-                })
-                .catch((err) => this.logger.error(err));
-        });
-
         siteModel.deleteMany({}, (err) => {
             if (err) {
                 this.logger.error(err);
@@ -127,11 +78,12 @@ export class SiteParseService {
             const images = Array.from(imageElements)
                 .map((element) => {
                     const image: SiteImage = {
+                        url: '',
                         baseUrl: '',
                         width: undefined,
                         height: undefined,
                         score: 0,
-                        type: '',
+                        type: 'unknown',
                     };
 
                     if (element.tagName.toLowerCase() === 'meta') {
@@ -148,8 +100,17 @@ export class SiteParseService {
                                 image.width = +size.substring(0, separator);
                                 image.height = +size.substring(separator + 1);
 
+                                const ratio = image.width / image.height;
                                 const wScore = (1 / Math.abs(image.width - 100)) * (image.width > 100 ? 400 : 100);
                                 const hScore = (1 / Math.abs(image.height - 100)) * (image.height > 100 ? 400 : 100);
+
+                                if (ratio !== 1 && image.width >= 210) {
+                                    image.type = 'poster';
+                                } else if (ratio === 1 && image.width >= 40) {
+                                    image.type = 'icon';
+                                } else {
+                                    image.type = 'small-icon';
+                                }
 
                                 image.score += wScore;
                                 image.score += hScore;
@@ -191,58 +152,6 @@ export class SiteParseService {
         }
     }
 
-    async processingImage(url: string): Promise<any> {
-        const { data, request } = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
-
-        let buffer = data;
-        let type;
-        let score = 0;
-
-        if (request.res.headers['content-type'] === 'image/x-icon') {
-            buffer = await icoToPng(data, 80);
-        }
-
-        let canvas = await ResizedSharp(buffer, { width: 80, height: 80 });
-
-        const metadata = await canvas.metadata();
-
-        this.logger.log(
-            `Processing icon '${url}'. Metadata: ${JSON.stringify(pick(metadata, ['format', 'width', 'height']))}`,
-        );
-
-        const ratio = metadata.width / metadata.height;
-
-        if (ratio !== 1 && metadata.width >= 210) {
-            // Big poster
-            canvas = canvas.resize(210 * 2, 110 * 2);
-            type = 'poster';
-            score = Math.min(Math.round((metadata.width + metadata.height) / 8), 300);
-        } else if ((ratio === 1 && metadata.width >= 40) || metadata.format === 'svg') {
-            // Big icon
-            canvas = canvas.resize(40 * 2, 40 * 2);
-            type = 'icon';
-            score = Math.min(Math.round((metadata.width + metadata.height) / 2), 140);
-        } else {
-            // Small icon
-            canvas = canvas.resize(40 * 2, 40 * 2).blur(30);
-            type = 'small-icon';
-            score = Math.round((metadata.width + metadata.height) / 2);
-        }
-
-        if (metadata.format === 'svg') {
-            score += 100;
-        }
-
-        const processingData = await canvas.png().toBuffer();
-
-        return {
-            baseUrl: url,
-            score,
-            type,
-            data: processingData,
-        };
-    }
-
     async saveSiteToCache(site: Site): Promise<void> {
         const saveSite = {
             url: site.url,
@@ -252,8 +161,9 @@ export class SiteParseService {
             title: site.title,
             description: site.description,
             images: site.images.map((icon) => ({
-                fileName: hash(icon.baseUrl),
                 baseUrl: icon.baseUrl,
+                width: icon.width,
+                height: icon.height,
                 score: icon.score,
                 type: icon.type,
             })),
@@ -267,6 +177,8 @@ export class SiteParseService {
         const site = await this.siteModel.findOne({ url });
 
         if (site) {
+            console.log('images:', site.images);
+
             return {
                 url: site.url,
                 rootUrl: site.rootUrl,
@@ -276,6 +188,9 @@ export class SiteParseService {
                 description: site.description,
                 images: site.images.map(
                     (image): SiteImage => ({
+                        url: `http://localhost:8080/site-parse/processing-image?url=${encodeURIComponent(
+                            image.baseUrl,
+                        )}`,
                         baseUrl: image.baseUrl,
                         width: image.width,
                         height: image.height,
@@ -289,46 +204,12 @@ export class SiteParseService {
         return null;
     }
 
-    async saveImageToCache(image): Promise<void> {
-        const name = hash(image.baseUrl);
-
-        await fs.outputFile(`cache/images/${name}.png`, image.data);
-
-        await this.siteImageModel.create({
-            fileName: name,
-            baseUrl: image.baseUrl,
-            score: image.score,
-            type: image.type,
-        });
-        this.logger.log(`Saved image '${image.baseUrl}' to cache with name '${name}'`);
-    }
-
-    async getImageFromCache(name: string): Promise<any> {
-        const dbRow = await this.siteImageModel.findOne({
-            fileName: name,
-        });
-        const isExistInCache = dbRow && (await fs.pathExists(`cache/images/${name}.png`));
-
-        if (!isExistInCache) return null;
-
-        const processingData = await fs.readFile(`cache/images/${name}.png`);
-
-        return {
-            baseUrl: dbRow.baseUrl,
-            score: dbRow.score,
-            type: dbRow.type,
-            data: processingData,
-        };
-    }
-
-    @Interval(10 * 1000) // Clear cache every 1m
+    @Interval(60 * 1000) // Clear cache every 1m
     async handleClearCache() {
-        this.logger.log('Start clearing obsolete site and icons cache...');
-
-        let sitesRemove;
+        this.logger.log('Start clearing obsolete site cache...');
 
         try {
-            sitesRemove = await this.siteModel.find({
+            const sitesRemove = await this.siteModel.find({
                 createDate: {
                     $lte: new Date(),
                 },
@@ -340,23 +221,7 @@ export class SiteParseService {
                 },
             });
 
-            const imagesRemove = await this.siteImageModel.find({
-                createDate: {
-                    $lte: new Date(),
-                },
-            });
-
-            await this.siteImageModel.deleteMany({
-                createDate: {
-                    $lte: new Date(),
-                },
-            });
-
-            await Promise.all(imagesRemove.map((row) => fs.remove(`cache/images/${row.fileName}.png`)));
-
-            this.logger.log(
-                `The cache has been cleared. Removed outdated: ${sitesRemove.length} sites ${imagesRemove.length} icons`,
-            );
+            this.logger.log(`The cache has been cleared. Removed ${sitesRemove.length} outdated sites`);
         } catch (e) {
             this.logger.error(e);
         }

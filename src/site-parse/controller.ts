@@ -1,13 +1,17 @@
 import { Controller, Get, Logger, Query, Res } from '@nestjs/common';
-import { SiteParseService } from './service';
+import { SiteParseService } from './site.service';
 import { Site } from './entities/site';
 import { Readable } from 'stream';
-import hash from './../utils/hash';
+import hash from '@/utils/hash';
+import { IconsProcessingService } from './icons.service';
 
 @Controller('site-parse')
 export class SiteParseController {
     private readonly logger = new Logger(SiteParseController.name);
-    constructor(private readonly siteParseService: SiteParseService) {}
+    constructor(
+        private readonly siteParseService: SiteParseService,
+        private readonly iconsProcessingService: IconsProcessingService,
+    ) {}
 
     @Get('get-meta')
     async getMeta(@Query() query): Promise<Site> {
@@ -23,7 +27,40 @@ export class SiteParseController {
             this.logger.log(`Find site '${query.url}' in cache`);
         }
 
-        return site;
+        const images = site.images.map((image) => image.baseUrl);
+
+        const imagesFromCache = await this.iconsProcessingService.getImagesMetaFromCache(images);
+
+        const finalImages = site.images
+            .map((image) => {
+                const imageFromCache = imagesFromCache.find((cahceImage) => cahceImage.baseUrl === image.baseUrl)
+
+                if (imageFromCache) {
+                    return {
+                        url: `http://localhost:8080/site-parse/processing-image?url=${encodeURIComponent(
+                            imageFromCache.baseUrl,
+                        )}`,
+                        baseUrl: imageFromCache.baseUrl,
+                        width: imageFromCache.width,
+                        height: imageFromCache.height,
+                        score: imageFromCache.score,
+                        type: imageFromCache.type,
+                    };
+                }
+
+                return image;
+            })
+            .sort((imageA, imageB) => {
+                if (imageA.score > imageB.score) {
+                    return -1;
+                } else if (imageA.score < imageB.score) {
+                    return 1;
+                }
+
+                return 0;
+            });
+
+        return { ...site, images: finalImages };
     }
 
     @Get('processing-image')
@@ -31,13 +68,13 @@ export class SiteParseController {
         this.logger.log(`Processing image by url: '${query.url}'`);
         const name = hash(query.url);
 
-        let image = await this.siteParseService.getImageFromCache(name);
+        let image = await this.iconsProcessingService.getImageFromCache(name);
 
         if (!image) {
             this.logger.log(`Not find image in cache. Processing...`);
-            image = await this.siteParseService.processingImage(query.url);
+            image = await this.iconsProcessingService.processingImage(query.url);
 
-            await this.siteParseService.saveImageToCache(image);
+            await this.iconsProcessingService.saveImageToCache(image);
         } else {
             this.logger.log(`Find image in cache with name '${name}'`);
         }

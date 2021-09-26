@@ -7,6 +7,7 @@ enum types {
 }
 
 export class SiteImage {
+    @IsString() url = '';
     @IsString() baseUrl = '';
     @IsNumber() @IsOptional() width: number;
     @IsNumber() @IsOptional() height: number;

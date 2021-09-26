@@ -1,5 +1,24 @@
 import { Prop, Index } from '@typegoose/typegoose';
-import { SiteImage } from './siteImage';
+
+class SiteImageLite {
+    @Prop({ required: true })
+    baseUrl!: string;
+
+    @Prop()
+    width?: number;
+
+    @Prop()
+    height?: number;
+
+    @Prop()
+    score?: number;
+
+    @Prop({
+        required: true,
+        enum: ['poster', 'icon', 'small-icon'],
+    })
+    type!: string;
+}
 
 @Index({ url: 'text', rootUrl: 'text', host: 'text' })
 export class Site {
@@ -23,7 +42,7 @@ export class Site {
 
     // FIXME: Setting "Mixed" for property "Site.icons"
     @Prop()
-    images?: SiteImage[];
+    images?: SiteImageLite[];
 
     @Prop({ required: true, default: () => new Date() })
     createDate?: Date;
