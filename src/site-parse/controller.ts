@@ -1,18 +1,21 @@
-import { Controller, Get, Logger, Query, Res } from '@nestjs/common';
+import { Controller, Get, Logger, Query, Res, UseGuards } from '@nestjs/common';
 import { SiteParseService } from './site.service';
 import { Site } from './entities/site';
 import { Readable } from 'stream';
 import hash from '@/utils/hash';
 import { IconsProcessingService } from './icons.service';
+import { JwtAuthGuard } from '@/auth/strategies/jwt/auth.guard';
 
 @Controller('site-parse')
 export class SiteParseController {
     private readonly logger = new Logger(SiteParseController.name);
+
     constructor(
         private readonly siteParseService: SiteParseService,
         private readonly iconsProcessingService: IconsProcessingService,
     ) {}
 
+    @UseGuards(JwtAuthGuard)
     @Get('get-meta')
     async getMeta(@Query() query): Promise<Site> {
         this.logger.log(`Start parse site '${query.url}'...`);
@@ -63,6 +66,7 @@ export class SiteParseController {
         return { ...site, images: finalImages };
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get('processing-image')
     async processingImage(@Query() query, @Res() response): Promise<void> {
         this.logger.log(`Processing image by url: '${query.url}'`);
