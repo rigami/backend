@@ -9,9 +9,10 @@ import { v4 as UUIDv4 } from 'uuid';
 export class AuthService {
     constructor(private usersService: UsersService, private jwtService: JwtService) {}
 
-    async validateUser(username: string, pass: string): Promise<any> {
+    async validateUser(username: string, password: string): Promise<any> {
         const user = await this.usersService.findOne(username);
-        if (user && user.password === pass) {
+
+        if (user && user.password === password) {
             const { password, ...result } = user;
             return result;
         }
@@ -19,30 +20,29 @@ export class AuthService {
     }
 
     async signDevice(instanceInfo: InstanceInfo) {
-        console.log('Sign device:', instanceInfo);
-
         const password = UUIDv4();
-
-        console.log('assign instance:', instanceInfo, password);
 
         const user = await this.usersService.createUser(instanceInfo.uuid, password);
 
         return {
-            login: instanceInfo.uuid,
-            password: password,
+            signDeviceToken: this.jwtService.sign({
+                sub: user.id,
+                deviceId: instanceInfo.uuid,
+                serverSign: password,
+            }),
         };
     }
 
     async registration(registrationInfo: RegistrationInfo) {
-        console.log('registration user:', registrationInfo);
+        const user = await this.usersService.createUser(registrationInfo.email, registrationInfo.password);
+
+        return this.login(user);
     }
 
     async login(user: any) {
-        console.log('user:', user);
-
         const payload = { username: user.username, sub: user.id };
         return {
-            access_token: this.jwtService.sign(payload),
+            accessToken: this.jwtService.sign(payload, { expiresIn: '30d' }),
         };
     }
 }
