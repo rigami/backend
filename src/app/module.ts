@@ -4,6 +4,7 @@ import { AuthModule } from '@/auth/module';
 import { SiteParseModule } from '@/site-parse/module';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { ScheduleModule } from '@nestjs/schedule';
+import { AppController } from './controller';
 
 @Module({
     imports: [
@@ -13,5 +14,6 @@ import { ScheduleModule } from '@nestjs/schedule';
         SiteParseModule,
         ScheduleModule.forRoot(),
     ],
+    controllers: [AppController],
 })
 export class AppModule {}
