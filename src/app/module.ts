@@ -6,12 +6,14 @@ import { TypegooseModule } from 'nestjs-typegoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { SyncModule } from '@/sync/module';
 import { AppController } from './controller';
+import { DevicesModule } from '@/devices/module';
 
 @Module({
     imports: [
         TypegooseModule.forRoot('mongodb://localhost/rigami-cache'),
         AuthModule,
         UsersModule,
+        DevicesModule,
         SiteParseModule,
         SyncModule,
         ScheduleModule.forRoot(),

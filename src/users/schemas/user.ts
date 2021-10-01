@@ -8,6 +8,9 @@ export class User {
     @Prop()
     password!: string;
 
+    @Prop()
+    isVirtual!: boolean;
+
     @Prop({ required: true, default: () => new Date() })
     createDate?: Date;
 }

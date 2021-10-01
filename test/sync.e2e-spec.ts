@@ -5,10 +5,12 @@ import { INestApplication } from '@nestjs/common';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { AuthModule } from '@/auth/module';
 import { UsersModule } from '@/users/module';
+import { v4 as UUIDv4 } from 'uuid';
 
 describe('Sync (e2e)', () => {
     let app: INestApplication;
-    let signDeviceToken;
+    let device1;
+    let device2;
 
     beforeAll(async () => {
         const moduleRef = await Test.createTestingModule({
@@ -18,14 +20,28 @@ describe('Sync (e2e)', () => {
         app = moduleRef.createNestApplication();
         await app.init();
 
-        signDeviceToken = await request(app.getHttpServer())
+        device1 = await request(app.getHttpServer())
             .post('/auth/sign-device')
-            .send({ uuid: '9c7fc221-60e0-497a-ad13-c526d71f1fba', browser: 'Chrome' })
+            .send({ uuid: UUIDv4(), browser: 'Chrome' })
+            .set('Accept', 'application/json')
+            .then((response) => response.body.signDeviceToken);
+
+        device2 = await request(app.getHttpServer())
+            .post('/auth/sign-device')
+            .send({ uuid: UUIDv4(), browser: 'Chrome' })
             .set('Accept', 'application/json')
             .then((response) => response.body.signDeviceToken);
     });
 
-    it(`/GET push`, () => {
-        return request(app.getHttpServer()).get('/sync/push').auth(signDeviceToken, { type: 'bearer' }).expect(200);
+    it(`Push local state`, () => {
+        return request(app.getHttpServer())
+            .post('/sync/push')
+            .send({ a: 'a', b: 'b' })
+            .auth(device1, { type: 'bearer' })
+            .expect(200);
+    });
+
+    afterAll(async () => {
+        await app.close();
     });
 });
