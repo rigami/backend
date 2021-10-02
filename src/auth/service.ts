@@ -16,7 +16,7 @@ export class AuthService {
         private jwtService: JwtService,
     ) {}
 
-    async validateUser(email: string, password: string): Promise<any> {
+    async validateUser(email: string, password: string): Promise<User> {
         const user = await this.usersService.findOne(email);
 
         if (user && user.password === password) {
@@ -26,7 +26,7 @@ export class AuthService {
         return null;
     }
 
-    async validateDevice(id: string, deviceSign: string): Promise<any> {
+    async validateDevice(id: string, deviceSign: string): Promise<Device> {
         const device = await this.devicesService.findOneById(id);
 
         if (!device) {
@@ -54,19 +54,28 @@ export class AuthService {
         }
     }
 
-    async signDevice(userId: string, device: Device) {
-        this.logger.log(`Sign device for user id:${userId}...`);
-        const user = await this.usersService.findOneById(userId);
+    async registrationVirtual() {
+        try {
+            const user = await this.usersService.createVirtualUser();
+
+            return this.login(user);
+        } catch (e) {
+            throw new BadRequestException(e.message);
+        }
+    }
+
+    async signDevice(user: User, device: Device) {
+        this.logger.log(`Sign device for user id:${user.id}...`);
 
         if (!user) {
-            this.logger.warn(`User id:${userId} not exist. It is not possible to sign the device`);
+            this.logger.warn(`User id:${user.id} not exist. It is not possible to sign the device`);
 
-            throw new BadRequestException(`User id:${userId} not exist`);
+            throw new BadRequestException(`User id:${user.id} not exist`);
         }
 
         const signedDevice = await this.devicesService.createDevice(user, device);
 
-        const token = await this.renewalDeviceSignature(userId, signedDevice.id);
+        const token = await this.renewalDeviceSignature(user, signedDevice);
 
         const payload = {
             tokenHolder: 'device',
@@ -83,25 +92,17 @@ export class AuthService {
         };
     }
 
-    async renewalDeviceSignature(userId: string, deviceId: string) {
-        this.logger.log(`Renewal device id:${deviceId} signature by user id:${userId}...`);
+    async renewalDeviceSignature(user: User, device: Device) {
+        this.logger.log(`Renewal device id:${device.id} signature by user id:${user.id}...`);
 
-        const signedDevice = await this.devicesService.findOneById(deviceId);
-
-        if (!signedDevice || userId !== signedDevice.holderUserId) {
+        if (user.id !== device.holderUserId) {
             throw new UnauthorizedException('DEVICE_NOT_EXIST');
-        }
-
-        const user = await this.usersService.findOneById(signedDevice.holderUserId);
-
-        if (!user || !signedDevice) {
-            throw new UnauthorizedException('DEVICE_NOT_SIGNED');
         }
 
         const payload = {
             tokenHolder: 'device',
             tokenType: 'accessToken',
-            sub: signedDevice.id,
+            sub: device.id,
             ownerSub: user.id,
             ownerUsername: user.email,
         };
@@ -109,12 +110,12 @@ export class AuthService {
         return { accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }) };
     }
 
-    async login(user: any) {
+    async login(user: User) {
         const payload = {
             tokenHolder: 'user',
             tokenType: 'userKey',
             sub: user.id,
-            username: user.username,
+            username: user.email,
         };
         return { userKey: this.jwtService.sign(payload, { expiresIn: '30d' }) };
     }

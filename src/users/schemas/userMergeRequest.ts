@@ -1,15 +1,12 @@
 import { Prop, Index } from '@typegoose/typegoose';
 
-@Index({ email: 'text' })
-export class User {
+@Index({ mergedUserId: 'text', code: 'text' })
+export class UserMergeRequest {
     @Prop({ required: true, unique: true })
-    email!: string;
+    mergedUserId!: string;
 
-    @Prop()
-    password: string;
-
-    @Prop({ required: true })
-    isVirtual!: boolean;
+    @Prop({ unique: true })
+    code: string;
 
     @Prop({ required: true, default: () => new Date() })
     createDate?: Date;
