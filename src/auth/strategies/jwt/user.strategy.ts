@@ -34,8 +34,8 @@ export class JwtUserStrategy extends PassportStrategy(Strategy, 'jwt-user') {
 
         return {
             user: {
-                id: payload.sub,
-                username: payload.username,
+                id: user.id,
+                email: user.email,
                 isVirtual: user.isVirtual,
             },
         };

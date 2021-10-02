@@ -34,7 +34,7 @@ export class JwtDeviceStrategy extends PassportStrategy(Strategy, 'jwt-api') {
         return {
             user: {
                 id: user.id,
-                username: user.username,
+                email: user.email,
                 isVirtual: user.isVirtual,
             },
             device: {

@@ -3,7 +3,7 @@ import { Prop, Index } from '@typegoose/typegoose';
 @Index({ username: 'text' })
 export class User {
     @Prop({ unique: true })
-    username!: string;
+    email!: string;
 
     @Prop()
     password!: string;

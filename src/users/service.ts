@@ -4,6 +4,7 @@ import { InjectModel } from 'nestjs-typegoose';
 import { User as UserScheme } from './schemas/user';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
+import { use } from 'passport';
 
 @Injectable()
 export class UsersService {
@@ -30,23 +31,23 @@ export class UsersService {
 
         return {
             id: user.id,
-            username: user.username,
+            email: user.email,
             password: user.password,
             isVirtual: user.isVirtual,
             createDate: user.createDate,
         };
     }
 
-    async findOne(username: string): Promise<User | null> {
+    async findOne(email: string): Promise<User | null> {
         const user = await this.userModel.findOne({
-            username,
+            email,
         });
 
         if (!user) return null;
 
         return {
             id: user.id,
-            username: user.username,
+            email: user.email,
             password: user.password,
             isVirtual: user.isVirtual,
             createDate: user.createDate,
@@ -63,26 +64,26 @@ export class UsersService {
 
         return {
             id: user.id,
-            username: user.username,
+            email: user.email,
             password: user.password,
             isVirtual: true,
             createDate: user.createDate,
         };
     }
 
-    async createUser(username: string, password: string): Promise<User | null> {
-        this.logger.log(`Creating user '${username}'...`);
+    async createUser(email: string, password: string): Promise<User | null> {
+        this.logger.log(`Creating user '${email}'...`);
 
         try {
             const user = await this.userModel.create({
-                username,
+                email,
                 password,
                 isVirtual: false,
             });
 
             return {
                 id: user.id,
-                username: user.username,
+                email: user.email,
                 password: user.password,
                 isVirtual: false,
                 createDate: user.createDate,

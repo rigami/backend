@@ -16,8 +16,8 @@ export class AuthService {
         private jwtService: JwtService,
     ) {}
 
-    async validateUser(username: string, password: string): Promise<any> {
-        const user = await this.usersService.findOne(username);
+    async validateUser(email: string, password: string): Promise<any> {
+        const user = await this.usersService.findOne(email);
 
         if (user && user.password === password) {
             const { password, ...result } = user;
@@ -73,7 +73,7 @@ export class AuthService {
             tokenType: 'deviceKey',
             sub: signedDevice.id,
             ownerSub: user.id,
-            ownerUsername: user.username,
+            ownerUsername: user.email,
             deviceSign: signedDevice.deviceSign,
         };
 
@@ -103,7 +103,7 @@ export class AuthService {
             tokenType: 'accessToken',
             sub: signedDevice.id,
             ownerSub: user.id,
-            ownerUsername: user.username,
+            ownerUsername: user.email,
         };
 
         return { accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }) };
