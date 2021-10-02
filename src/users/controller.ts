@@ -20,6 +20,6 @@ export class UsersController {
     @UseGuards(JwtUserAuthGuard)
     @Post('merge/get-code')
     async generateMergeCode(@CurrentUser() user) {
-        return this.usersService.generateMergeRequest(user);
+        return this.usersService.createMergeRequest(user);
     }
 }

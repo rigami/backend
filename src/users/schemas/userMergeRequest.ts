@@ -10,4 +10,7 @@ export class UserMergeRequest {
 
     @Prop({ required: true, default: () => new Date() })
     createDate?: Date;
+
+    @Prop({ required: true, default: () => new Date() })
+    expiredDate?: Date;
 }
