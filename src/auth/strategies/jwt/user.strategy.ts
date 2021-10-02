@@ -5,6 +5,7 @@ import { jwtConstants } from '../../constants';
 import { AuthService } from '@/auth/service';
 import { DevicesService } from '@/devices/service';
 import { UsersService } from '@/users/service';
+import { Credentials } from '@/auth/entities/credentials';
 
 @Injectable()
 export class JwtUserStrategy extends PassportStrategy(Strategy, 'jwt-user') {
@@ -20,8 +21,10 @@ export class JwtUserStrategy extends PassportStrategy(Strategy, 'jwt-user') {
         });
     }
 
-    async validate(payload: any) {
-        console.log('validate user:', payload);
+    async validate(payload: any): Promise<Credentials> {
+        if (payload.tokenHolder !== 'user' || payload.tokenType !== 'userKey') {
+            throw new UnauthorizedException();
+        }
 
         const user = await this.userService.findOne(payload.username);
 
@@ -30,9 +33,11 @@ export class JwtUserStrategy extends PassportStrategy(Strategy, 'jwt-user') {
         }
 
         return {
-            tokenHolder: payload.tokenHolder,
-            userId: payload.sub,
-            username: payload.username,
+            user: {
+                id: payload.sub,
+                username: payload.username,
+                isVirtual: user.isVirtual,
+            },
         };
     }
 }

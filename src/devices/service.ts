@@ -24,14 +24,10 @@ export class DevicesService {
         });
     }
 
-    async findOneById(id: string): Promise<Device | undefined> {
-        console.log('device findOneById:', id)
+    async findOneById(id: string): Promise<Device | null> {
         const device = await this.deviceModel.findById(id);
 
-
-        console.log('device findOneById:', device)
-
-        if (!device) return undefined;
+        if (!device) return null;
 
         return {
             id: device.id,
@@ -43,20 +39,14 @@ export class DevicesService {
         };
     }
 
-    async createDevice(holderUser: User, device: Device): Promise<Device | undefined> {
-        this.logger.log(`Sign device for user '${holderUser.username}' (${device.userAgent})...`);
-
+    async createDevice(holderUser: User, device: Device): Promise<Device | null> {
         const deviceSign = UUIDv4();
-
-        console.log('holderUser:', holderUser, holderUser.id.toString())
 
         const createdDevice = await this.deviceModel.create({
             ...device,
             holderUserId: holderUser.id.toString(),
             deviceSign,
         });
-
-        console.log('createdDevice:', createdDevice)
 
         return {
             id: createdDevice.id,

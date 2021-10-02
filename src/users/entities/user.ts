@@ -1,9 +1,9 @@
 import { IsString, IsNumber, IsOptional, IsDate, IsBoolean } from 'class-validator';
 
 export class User {
-    @IsNumber() @IsOptional() readonly id: number;
+    @IsNumber() @IsOptional() readonly id?: string;
     @IsString() readonly username: string;
-    @IsString() readonly password: string;
+    @IsString() @IsOptional() readonly password?: string;
     @IsBoolean() readonly isVirtual: boolean;
-    @IsDate() @IsOptional() readonly createDate: Date;
+    @IsDate() @IsOptional() readonly createDate?: Date;
 }

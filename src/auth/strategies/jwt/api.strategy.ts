@@ -2,15 +2,13 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { jwtConstants } from '../../constants';
-import { AuthService } from '@/auth/service';
 import { DevicesService } from '@/devices/service';
 import { UsersService } from '@/users/service';
 import { Credentials } from '@/auth/entities/credentials';
 
 @Injectable()
-export class JwtDeviceRenewalStrategy extends PassportStrategy(Strategy, 'jwt-device') {
+export class JwtDeviceStrategy extends PassportStrategy(Strategy, 'jwt-api') {
     constructor(
-        private authService: AuthService,
         private deviceService: DevicesService,
         private userService: UsersService,
     ) {
@@ -22,11 +20,11 @@ export class JwtDeviceRenewalStrategy extends PassportStrategy(Strategy, 'jwt-de
     }
 
     async validate(payload: any): Promise<Credentials> {
-        if (payload.tokenHolder !== 'device' || payload.tokenType !== 'deviceKey') {
+        if (payload.tokenHolder !== 'device' || payload.tokenType !== 'accessToken') {
             throw new UnauthorizedException();
         }
 
-        const device = await this.authService.validateDevice(payload.sub, payload.deviceSign);
+        const device = await this.deviceService.findOneById(payload.sub);
         const user = await this.userService.findOneById(payload.ownerSub);
 
         if (!device || !user || device.holderUserId !== user.id) {

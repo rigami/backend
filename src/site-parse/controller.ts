@@ -4,7 +4,7 @@ import { Site } from './entities/site';
 import { Readable } from 'stream';
 import hash from '@/utils/hash';
 import { IconsProcessingService } from './icons.service';
-import { JwtDeviceAuthGuard } from '@/auth/strategies/jwt/auth.guard';
+import { JwtApiAuthGuard } from '@/auth/strategies/jwt/auth.guard';
 
 @Controller('site-parse')
 export class SiteParseController {
@@ -15,7 +15,7 @@ export class SiteParseController {
         private readonly iconsProcessingService: IconsProcessingService,
     ) {}
 
-    @UseGuards(JwtDeviceAuthGuard)
+    @UseGuards(JwtApiAuthGuard)
     @Get('get-meta')
     async getMeta(@Query() query): Promise<Site> {
         this.logger.log(`Start parse site '${query.url}'...`);
@@ -66,7 +66,7 @@ export class SiteParseController {
         return { ...site, images: finalImages };
     }
 
-    @UseGuards(JwtDeviceAuthGuard)
+    @UseGuards(JwtApiAuthGuard)
     @Get('processing-image')
     async processingImage(@Query() query, @Res() response): Promise<void> {
         this.logger.log(`Processing image by url: '${query.url}'`);

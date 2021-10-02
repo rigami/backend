@@ -1,10 +1,12 @@
-import { Body, Controller, Param, Post, Request, UseGuards } from '@nestjs/common';
+import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
 import { AuthService } from './service';
 import { LocalAuthGuard } from './strategies/local/auth.guard';
 import { RegistrationInfo } from '@/auth/entities/registrationInfo';
 import { JwtService } from '@nestjs/jwt';
 import { Device } from '@/devices/entities/device';
-import { JwtUserAuthGuard } from '@/auth/strategies/jwt/auth.guard';
+import { JwtDeviceAuthGuard, JwtUserAuthGuard } from '@/auth/strategies/jwt/auth.guard';
+import { CurrentUser } from '@/auth/utils/currentUser.param.decorator';
+import { CurrentDevice } from '@/auth/utils/currentDevice.param.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -17,14 +19,14 @@ export class AuthController {
 
     @UseGuards(JwtUserAuthGuard)
     @Post('device/sign')
-    async signDevice(@Body() device: Device, @Request() req) {
-        return this.authService.signDevice(req.user.userId, { ...device, holderUserId: req.user.userId });
+    async signDevice(@CurrentUser() user, @Body() device: Device) {
+        return this.authService.signDevice(user.id, { ...device, holderUserId: user.id });
     }
 
-    @UseGuards(JwtUserAuthGuard)
-    @Post('device/:deviceId/renewal')
-    async renewalDeviceSignature(@Param() params, @Request() req) {
-        return this.authService.renewalDeviceSignature(req.user.userId, params.deviceId);
+    @UseGuards(JwtDeviceAuthGuard)
+    @Post('device/renewal')
+    async renewalDeviceSignature(@CurrentUser() user, @CurrentDevice() device) {
+        return this.authService.renewalDeviceSignature(user.id, device.id);
     }
 
     @UseGuards(LocalAuthGuard)

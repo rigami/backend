@@ -23,10 +23,10 @@ export class UsersService {
         });
     }
 
-    async findOneById(userId: string): Promise<User | undefined> {
+    async findOneById(userId: string): Promise<User | null> {
         const user = await this.userModel.findById(userId);
 
-        if (!user) return undefined;
+        if (!user) return null;
 
         return {
             id: user.id,
@@ -37,12 +37,12 @@ export class UsersService {
         };
     }
 
-    async findOne(username: string): Promise<User | undefined> {
+    async findOne(username: string): Promise<User | null> {
         const user = await this.userModel.findOne({
             username,
         });
 
-        if (!user) return undefined;
+        if (!user) return null;
 
         return {
             id: user.id,
@@ -53,7 +53,7 @@ export class UsersService {
         };
     }
 
-    async createVirtualUser(): Promise<User | undefined> {
+    async createVirtualUser(): Promise<User | null> {
         this.logger.log(`Creating virtual user...`);
 
         const user = await this.userModel.create({
@@ -70,7 +70,7 @@ export class UsersService {
         };
     }
 
-    async createUser(username: string, password: string): Promise<User | undefined> {
+    async createUser(username: string, password: string): Promise<User | null> {
         this.logger.log(`Creating user '${username}'...`);
 
         try {

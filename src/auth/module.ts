@@ -8,7 +8,8 @@ import { jwtConstants } from './constants';
 import { AuthController } from './controller';
 import { JwtUserStrategy } from './strategies/jwt/user.strategy';
 import { DevicesModule } from '@/devices/module';
-import { JwtDeviceStrategy } from '@/auth/strategies/jwt/device.strategy';
+import { JwtDeviceStrategy } from '@/auth/strategies/jwt/api.strategy';
+import { JwtDeviceRenewalStrategy } from '@/auth/strategies/jwt/device.strategy';
 
 @Module({
     imports: [
@@ -19,7 +20,7 @@ import { JwtDeviceStrategy } from '@/auth/strategies/jwt/device.strategy';
             secret: jwtConstants.secret,
         }),
     ],
-    providers: [AuthService, JwtDeviceStrategy, JwtUserStrategy, LocalStrategy],
+    providers: [AuthService, JwtDeviceStrategy, JwtDeviceRenewalStrategy, JwtUserStrategy, LocalStrategy],
     exports: [AuthService],
     controllers: [AuthController],
 })
