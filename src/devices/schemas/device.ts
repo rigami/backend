@@ -12,6 +12,9 @@ export class Device {
     type: string;
 
     @Prop()
+    token: string;
+
+    @Prop()
     deviceSign!: string;
 
     @Prop({ required: true, default: () => new Date() })

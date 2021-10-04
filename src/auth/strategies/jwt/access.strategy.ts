@@ -2,33 +2,30 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { jwtConstants } from '../../constants';
-import { AuthService } from '@/auth/service';
 import { DevicesService } from '@/devices/service';
 import { UsersService } from '@/users/service';
 import { Credentials } from '@/auth/entities/credentials';
 
 @Injectable()
-export class JwtUserStrategy extends PassportStrategy(Strategy, 'jwt-user') {
-    constructor(
-        private authService: AuthService,
-        private deviceService: DevicesService,
-        private userService: UsersService,
-    ) {
+export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') {
+    constructor(private deviceService: DevicesService, private userService: UsersService) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
             secretOrKey: jwtConstants.secret,
+            passReqToCallback: true,
         });
     }
 
-    async validate(payload: any): Promise<Credentials> {
-        if (payload.tokenHolder !== 'user' || payload.tokenType !== 'userKey') {
+    async validate(request: Request, payload: any): Promise<Credentials> {
+        if (payload.tokenType !== 'accessToken') {
             throw new UnauthorizedException();
         }
 
-        const user = await this.userService.findOne(payload.username);
+        const user = await this.userService.findOneById(payload.sub);
+        const device = await this.deviceService.findOneById(payload.deviceSub);
 
-        if (!user) {
+        if (!user || !device || device.holderUserId !== user.id || request.headers['device-token'] !== device.token) {
             throw new UnauthorizedException();
         }
 
@@ -37,6 +34,11 @@ export class JwtUserStrategy extends PassportStrategy(Strategy, 'jwt-user') {
                 id: user.id,
                 email: user.email,
                 isVirtual: user.isVirtual,
+            },
+            device: {
+                id: device.id,
+                userAgent: device.userAgent,
+                type: device.type,
             },
         };
     }

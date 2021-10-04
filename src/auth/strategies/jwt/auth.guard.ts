@@ -1,11 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { ExecutionContext, Injectable } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { ValidationRequestHeaders } from '@/auth/utils/validationHeaders.headers.decorator';
+import { AppHeaders } from '@/auth/entities/headers';
 
 @Injectable()
-export class JwtUserAuthGuard extends AuthGuard('jwt-user') {}
+export class JwtRefreshAuthGuard extends AuthGuard('jwt-refresh') {
+    async canActivate(context: ExecutionContext): Promise<any> {
+        await ValidationRequestHeaders(AppHeaders, context);
+
+        return super.canActivate(context);
+    }
+}
 
 @Injectable()
-export class JwtApiAuthGuard extends AuthGuard('jwt-api') {}
+export class JwtAccessAuthGuard extends AuthGuard('jwt-access') {
+    async canActivate(context: ExecutionContext): Promise<any> {
+        await ValidationRequestHeaders(AppHeaders, context);
 
-@Injectable()
-export class JwtDeviceAuthGuard extends AuthGuard('jwt-device') {}
+        return super.canActivate(context);
+    }
+}

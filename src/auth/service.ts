@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '@/users/service';
 import { JwtService } from '@nestjs/jwt';
 import { RegistrationInfo } from '@/auth/entities/registrationInfo';
 import { DevicesService } from '@/devices/service';
 import { Device } from '@/devices/entities/device';
 import { User } from '@/users/entities/user';
+import { LoginInfo } from '@/auth/entities/loginInfo';
 
 @Injectable()
 export class AuthService {
@@ -26,39 +27,27 @@ export class AuthService {
         return null;
     }
 
-    async validateDevice(id: string, deviceSign: string): Promise<Device> {
-        const device = await this.devicesService.findOneById(id);
-
-        if (!device) {
-            return null;
-        }
-
-        const user = await this.usersService.findOneById(device.holderUserId);
-
-        if (user && device && device.deviceSign === deviceSign) {
-            const { deviceSign, ...deviceSafe } = device;
-
-            return deviceSafe;
-        }
-
-        return null;
-    }
-
     async registration(registrationInfo: RegistrationInfo) {
         try {
-            const user = await this.usersService.createUser(registrationInfo.email, registrationInfo.password);
-
-            return this.login(user);
+            return await this.usersService.createUser(registrationInfo.email, registrationInfo.password);
         } catch (e) {
             throw new BadRequestException(e.message);
         }
     }
 
-    async registrationVirtual() {
+    async registrationVirtual(deviceRegistrationInfo: any) {
         try {
             const user = await this.usersService.createVirtualUser();
 
-            return this.login(user);
+            const loginInfo = await this.login({
+                user,
+                ...deviceRegistrationInfo,
+            });
+
+            return {
+                deviceToken: deviceRegistrationInfo.deviceToken,
+                ...loginInfo,
+            };
         } catch (e) {
             throw new BadRequestException(e.message);
         }
@@ -73,50 +62,40 @@ export class AuthService {
             throw new BadRequestException(`User id:${user.id} not exist`);
         }
 
-        const signedDevice = await this.devicesService.createDevice(user, device);
-
-        const token = await this.renewalDeviceSignature(user, signedDevice);
-
-        const payload = {
-            tokenHolder: 'device',
-            tokenType: 'deviceKey',
-            sub: signedDevice.id,
-            ownerSub: user.id,
-            ownerUsername: user.email,
-            deviceSign: signedDevice.deviceSign,
-        };
-
-        return {
-            ...token,
-            deviceKey: this.jwtService.sign(payload),
-        };
+        return await this.devicesService.createDevice(user, device);
     }
 
-    async renewalDeviceSignature(user: User, device: Device) {
-        this.logger.log(`Renewal device id:${device.id} signature by user id:${user.id}...`);
-
-        if (user.id !== device.holderUserId) {
-            throw new UnauthorizedException('DEVICE_NOT_EXIST');
-        }
+    async getAccessToken(user: User, device: Device) {
+        this.logger.log(`Renewal access token for user id:${user.id} on device id:${device.id}...`);
 
         const payload = {
-            tokenHolder: 'device',
             tokenType: 'accessToken',
-            sub: device.id,
-            ownerSub: user.id,
-            ownerUsername: user.email,
-        };
-
-        return { accessToken: this.jwtService.sign(payload, { expiresIn: '1h' }) };
-    }
-
-    async login(user: User) {
-        const payload = {
-            tokenHolder: 'user',
-            tokenType: 'userKey',
             sub: user.id,
             username: user.email,
+            deviceSub: device.id,
         };
-        return { userKey: this.jwtService.sign(payload, { expiresIn: '30d' }) };
+
+        return { accessToken: this.jwtService.sign(payload, { expiresIn: '10m' }) };
+    }
+
+    async login(loginInfo: LoginInfo) {
+        const device = await this.signDevice(loginInfo.user, {
+            userAgent: loginInfo.userAgent,
+            type: loginInfo.deviceType,
+            token: loginInfo.deviceToken,
+        });
+
+        const accessToken = await this.getAccessToken(loginInfo.user, device);
+
+        const payload = {
+            tokenType: 'refreshToken',
+            sub: loginInfo.user.id,
+            username: loginInfo.user.email,
+            deviceSub: device.id,
+        };
+        return {
+            ...accessToken,
+            refreshToken: this.jwtService.sign(payload, loginInfo.user.isVirtual ? {} : { expiresIn: '30d' }),
+        };
     }
 }

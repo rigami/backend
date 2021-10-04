@@ -1,5 +1,5 @@
 import { BadRequestException, Controller, Post, Query, UseGuards } from '@nestjs/common';
-import { JwtUserAuthGuard } from '@/auth/strategies/jwt/auth.guard';
+import { JwtAccessAuthGuard } from '@/auth/strategies/jwt/auth.guard';
 import { CurrentUser } from '@/auth/utils/currentUser.param.decorator';
 import { UsersService } from '@/users/service';
 
@@ -7,7 +7,7 @@ import { UsersService } from '@/users/service';
 export class UsersController {
     constructor(private usersService: UsersService) {}
 
-    @UseGuards(JwtUserAuthGuard)
+    @UseGuards(JwtAccessAuthGuard)
     @Post('merge/activate')
     async merge(@CurrentUser() user, @Query() query) {
         try {
@@ -17,7 +17,7 @@ export class UsersController {
         }
     }
 
-    @UseGuards(JwtUserAuthGuard)
+    @UseGuards(JwtAccessAuthGuard)
     @Post('merge/get-code')
     async generateMergeCode(@CurrentUser() user) {
         return this.usersService.createMergeRequest(user);

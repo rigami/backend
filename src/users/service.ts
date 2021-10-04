@@ -63,6 +63,7 @@ export class UsersService {
 
         const user = await this.userModel.create({
             email: UUIDv4(),
+            password: '',
             isVirtual: true,
         });
 

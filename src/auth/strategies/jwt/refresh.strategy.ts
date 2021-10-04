@@ -7,27 +7,25 @@ import { UsersService } from '@/users/service';
 import { Credentials } from '@/auth/entities/credentials';
 
 @Injectable()
-export class JwtDeviceStrategy extends PassportStrategy(Strategy, 'jwt-api') {
-    constructor(
-        private deviceService: DevicesService,
-        private userService: UsersService,
-    ) {
+export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+    constructor(private deviceService: DevicesService, private userService: UsersService) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
             secretOrKey: jwtConstants.secret,
+            passReqToCallback: true,
         });
     }
 
-    async validate(payload: any): Promise<Credentials> {
-        if (payload.tokenHolder !== 'device' || payload.tokenType !== 'accessToken') {
+    async validate(request: Request, payload: any): Promise<Credentials> {
+        if (payload.tokenType !== 'refreshToken') {
             throw new UnauthorizedException();
         }
 
-        const device = await this.deviceService.findOneById(payload.sub);
-        const user = await this.userService.findOneById(payload.ownerSub);
+        const user = await this.userService.findOneById(payload.sub);
+        const device = await this.deviceService.findOneById(payload.deviceSub);
 
-        if (!device || !user || device.holderUserId !== user.id) {
+        if (!user || !device || device.holderUserId !== user.id || request.headers['device-token'] !== device.token) {
             throw new UnauthorizedException();
         }
 

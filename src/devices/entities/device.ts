@@ -14,6 +14,7 @@ export class Device {
     @IsString() @IsOptional() readonly holderUserId?: string;
     @IsString() readonly userAgent: string;
     @IsEnum(DEVICE_TYPE) readonly type: string;
+    @IsUUID() @IsOptional() readonly token?: string;
     @IsUUID() @IsOptional() readonly deviceSign?: string;
     @IsDate() @IsOptional() readonly createDate?: Date;
 

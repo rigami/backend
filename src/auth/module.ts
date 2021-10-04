@@ -6,10 +6,9 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { jwtConstants } from './constants';
 import { AuthController } from './controller';
-import { JwtUserStrategy } from './strategies/jwt/user.strategy';
+import { JwtRefreshStrategy } from './strategies/jwt/refresh.strategy';
 import { DevicesModule } from '@/devices/module';
-import { JwtDeviceStrategy } from '@/auth/strategies/jwt/api.strategy';
-import { JwtDeviceRenewalStrategy } from '@/auth/strategies/jwt/device.strategy';
+import { JwtAccessStrategy } from '@/auth/strategies/jwt/access.strategy';
 
 @Module({
     imports: [
@@ -20,7 +19,7 @@ import { JwtDeviceRenewalStrategy } from '@/auth/strategies/jwt/device.strategy'
             secret: jwtConstants.secret,
         }),
     ],
-    providers: [AuthService, JwtDeviceStrategy, JwtDeviceRenewalStrategy, JwtUserStrategy, LocalStrategy],
+    providers: [AuthService, JwtRefreshStrategy, JwtAccessStrategy, LocalStrategy],
     exports: [AuthService],
     controllers: [AuthController],
 })

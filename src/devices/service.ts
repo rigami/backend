@@ -34,6 +34,7 @@ export class DevicesService {
             holderUserId: device.holderUserId,
             userAgent: device.userAgent,
             type: device.type,
+            token: device.token,
             deviceSign: device.deviceSign,
             createDate: device.createDate,
         };
@@ -53,6 +54,7 @@ export class DevicesService {
             holderUserId: createdDevice.holderUserId,
             userAgent: createdDevice.userAgent,
             type: createdDevice.type,
+            token: device.token,
             deviceSign: createdDevice.deviceSign,
             createDate: createdDevice.createDate,
         };

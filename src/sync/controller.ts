@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpStatus, Logger, Post, Request, Res, UseGuards } from '@nestjs/common';
 import { SyncService } from './service';
-import { JwtApiAuthGuard } from '@/auth/strategies/jwt/auth.guard';
+import { JwtAccessAuthGuard } from '@/auth/strategies/jwt/auth.guard';
 
 @Controller('sync')
 export class SyncController {
@@ -8,13 +8,13 @@ export class SyncController {
 
     constructor(private readonly syncService: SyncService) {}
 
-    @UseGuards(JwtApiAuthGuard)
+    @UseGuards(JwtAccessAuthGuard)
     @Get('cloud-state')
     async cloudSync(@Request() req) {
         this.logger.log('Get cloud state for user', req.user);
     }
 
-    @UseGuards(JwtApiAuthGuard)
+    @UseGuards(JwtAccessAuthGuard)
     @Post('push')
     async push(@Request() req, @Body() body, @Res() response) {
         this.logger.log('Push state', req.user, body);
@@ -22,7 +22,7 @@ export class SyncController {
         response.status(HttpStatus.OK).send();
     }
 
-    @UseGuards(JwtApiAuthGuard)
+    @UseGuards(JwtAccessAuthGuard)
     @Get('commit')
     async commit(@Request() req) {
         this.logger.log('Commit state', req.user);
