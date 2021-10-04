@@ -1,4 +1,4 @@
-import { Body, Controller, Ip, Post, UseGuards, Headers, Get, Req, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Ip, Post, UseGuards, Headers, Get, Req } from '@nestjs/common';
 import { AuthService } from './service';
 import { LocalAuthGuard } from './strategies/local/auth.guard';
 import { RegistrationInfo } from '@/auth/entities/registrationInfo';
