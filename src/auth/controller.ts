@@ -50,13 +50,15 @@ export class AuthController {
         return this.authService.getAccessToken(user, device);
     }
 
-    @Get('token/is-expired')
+    @Get('token/expired-check')
     async isExpired(@RequestHeaders() headers: Headers, @Req() request) {
         try {
-            await this.jwtService.verify(ExtractJwt.fromAuthHeaderAsBearerToken()(request));
+            const { exp } = await this.jwtService.verify(ExtractJwt.fromAuthHeaderAsBearerToken()(request));
+
+            return { expired: false, expiredTimeout: exp * 1000 - Date.now() };
         } catch (e) {
             if (e.name === 'TokenExpiredError') {
-                throw new UnauthorizedException();
+                return { expired: true };
             }
 
             throw e;
