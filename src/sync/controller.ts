@@ -2,7 +2,7 @@ import { Body, Controller, Get, HttpStatus, Logger, Post, Request, Res, UseGuard
 import { SyncService } from './service';
 import { JwtAccessAuthGuard } from '@/auth/strategies/jwt/auth.guard';
 
-@Controller('sync')
+@Controller('v1/sync')
 export class SyncController {
     private readonly logger = new Logger(SyncController.name);
 

@@ -4,7 +4,7 @@ import { CurrentUser } from '@/auth/utils/currentUser.param.decorator';
 import { UsersService } from '@/users/service';
 import { MergeUsersService } from '@/users/merge.service';
 
-@Controller('users')
+@Controller('v1/users')
 export class UsersController {
     constructor(private usersService: UsersService, private mergeService: MergeUsersService) {}
 

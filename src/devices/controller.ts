@@ -1,4 +1,4 @@
 import { Controller } from '@nestjs/common';
 
-@Controller('devices')
+@Controller('v1/devices')
 export class DevicesController {}

@@ -6,7 +6,7 @@ import hash from '@/utils/hash';
 import { IconsProcessingService } from './icons.service';
 import { JwtAccessAuthGuard } from '@/auth/strategies/jwt/auth.guard';
 
-@Controller('site-parse')
+@Controller('v1/site-parse')
 export class SiteParseController {
     private readonly logger = new Logger(SiteParseController.name);
 

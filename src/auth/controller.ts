@@ -11,7 +11,7 @@ import { User } from '@/users/entities/user';
 import { RequestHeaders } from '@/auth/utils/validationHeaders.headers.decorator';
 import { ExtractJwt } from 'passport-jwt';
 
-@Controller('auth')
+@Controller('v1/auth')
 export class AuthController {
     constructor(private authService: AuthService, private jwtService: JwtService) {}
 
