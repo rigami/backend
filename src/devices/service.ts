@@ -40,6 +40,17 @@ export class DevicesService {
         };
     }
 
+    async changeOwnerByUserId(oldUserId: string, newUserId: string): Promise<void> {
+        const statistics = await this.deviceModel.updateMany(
+            { holderUserId: oldUserId },
+            { $set: { holderUserId: newUserId } },
+        );
+
+        this.logger.log(
+            `Change owner user id:${oldUserId} to user id:${newUserId} for ${statistics.modifiedCount} devices...`,
+        );
+    }
+
     async createDevice(holderUser: User, device: Device): Promise<Device | null> {
         const deviceSign = UUIDv4();
 

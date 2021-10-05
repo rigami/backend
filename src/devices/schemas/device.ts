@@ -2,16 +2,16 @@ import { Prop, Index } from '@typegoose/typegoose';
 
 @Index({ holderUserId: 'text', type: 'text', deviceSign: 'text' })
 export class Device {
-    @Prop()
+    @Prop({ required: true })
     holderUserId: string;
 
-    @Prop()
+    @Prop({ required: true })
     userAgent: string;
 
-    @Prop()
+    @Prop({ required: true })
     type: string;
 
-    @Prop()
+    @Prop({ required: true, unique: true })
     token: string;
 
     @Prop()
