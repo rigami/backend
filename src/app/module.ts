@@ -4,9 +4,9 @@ import { AuthModule } from '@/auth/module';
 import { SiteParseModule } from '@/site-parse/module';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { ScheduleModule } from '@nestjs/schedule';
-import { SyncModule } from '@/sync/module';
 import { AppController } from './controller';
 import { DevicesModule } from '@/devices/module';
+import { BookmarksModule } from '@/bookmarks/module';
 
 @Module({
     imports: [
@@ -15,7 +15,7 @@ import { DevicesModule } from '@/devices/module';
         UsersModule,
         DevicesModule,
         SiteParseModule,
-        SyncModule,
+        BookmarksModule,
         ScheduleModule.forRoot(),
     ],
     controllers: [AppController],

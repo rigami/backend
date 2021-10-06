@@ -1,7 +1,8 @@
-import { Prop, Index } from '@typegoose/typegoose';
+import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 
+@ModelOptions({ options: { customName: 'user-merge-request' } })
 @Index({ mergedUserId: 'text', code: 'text' })
-export class UserMergeRequest {
+export class UserMergeRequestSchema {
     @Prop({ required: true, unique: true })
     mergedUserId!: string;
 

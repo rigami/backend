@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { User } from './entities/user';
 import { InjectModel } from 'nestjs-typegoose';
-import { UserMergeRequest as UserMergeRequestScheme } from './schemas/userMergeRequest';
+import { UserMergeRequestSchema } from './schemas/userMergeRequest';
 import { ReturnModelType } from '@typegoose/typegoose';
 import generateMergeCode from '@/users/utils/generateMergeCode';
 import { Interval } from '@nestjs/schedule';
@@ -15,8 +15,8 @@ export class MergeUsersService {
     constructor(
         private usersService: UsersService,
         private devicesService: DevicesService,
-        @InjectModel(UserMergeRequestScheme)
-        private readonly mergeUserRequestModel: ReturnModelType<typeof UserMergeRequestScheme>,
+        @InjectModel(UserMergeRequestSchema)
+        private readonly mergeUserRequestModel: ReturnModelType<typeof UserMergeRequestSchema>,
     ) {
         mergeUserRequestModel.deleteMany({}, (err) => {
             if (err) {

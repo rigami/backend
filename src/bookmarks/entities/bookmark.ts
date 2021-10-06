@@ -1,15 +1,14 @@
-import { IsString, IsEnum, IsArray, IsNumber } from 'class-validator';
-import { Entity } from '@/sync/entities/enitity';
+import { IsString, IsNumber, IsEnum, IsArray } from 'class-validator';
+import { StateEntity } from '@/sync/entities/stateEnitity';
 
-export enum variant {
+export enum VARIANT {
     'poster' = 'poster',
     'default' = 'default',
     'symbol' = 'symbol',
 }
 
-export class Bookmark extends Entity {
-    @IsString() readonly type: string = 'bookmark';
-    @IsEnum(variant) readonly variant: string;
+export class Bookmark extends StateEntity {
+    @IsEnum(VARIANT) readonly variant: string;
     @IsString() readonly url: string;
     @IsString() readonly imageUrl: string;
     @IsString() readonly title: string;
