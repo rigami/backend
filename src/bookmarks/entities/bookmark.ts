@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsEnum, IsArray } from 'class-validator';
+import { IsString, IsNumber, IsEnum, IsArray, IsUUID } from 'class-validator';
 import { StateEntity } from '@/sync/entities/stateEnitity';
 
 export enum VARIANT {
@@ -8,6 +8,7 @@ export enum VARIANT {
 }
 
 export class Bookmark extends StateEntity {
+    @IsUUID() readonly id: string;
     @IsEnum(VARIANT) readonly variant: string;
     @IsString() readonly url: string;
     @IsString() readonly imageUrl: string;

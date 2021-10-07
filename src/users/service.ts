@@ -24,7 +24,7 @@ export class UsersService {
     }
 
     async findOneById(userId: string): Promise<User | null> {
-        const user = await this.userModel.findById(userId);
+        const user = await this.userModel.findOne({ id: userId });
 
         if (!user) return null;
 
@@ -54,7 +54,7 @@ export class UsersService {
     }
 
     async findByIdAndDelete(userId: string): Promise<User | null> {
-        const user = await this.userModel.findByIdAndDelete(userId);
+        const user = await this.userModel.findOneAndDelete({ id: userId });
 
         if (!user) return null;
 

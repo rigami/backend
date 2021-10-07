@@ -25,7 +25,7 @@ export class DevicesService {
     }
 
     async findOneById(id: string): Promise<Device | null> {
-        const device = await this.deviceModel.findById(id);
+        const device = await this.deviceModel.findOne({ id });
 
         if (!device) return null;
 
