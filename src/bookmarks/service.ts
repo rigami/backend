@@ -26,6 +26,14 @@ export class BookmarksService {
 
             this.logger.warn('Drop bookmarks! Because set development mode');
         });
+        stateHashModel.deleteMany({}, (err) => {
+            if (err) {
+                this.logger.error(err);
+                return;
+            }
+
+            this.logger.warn('Drop bookmarks states! Because set development mode');
+        });
     }
 
     async checkUpdate(localHash: string, user: User) {
