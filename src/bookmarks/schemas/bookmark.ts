@@ -1,5 +1,5 @@
 import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
-import { StateEntitySchema } from '@/sync/schemas/stateEntitySchema';
+import { StateEntitySchema } from '@/sync/schemas/stateEntity';
 
 @ModelOptions({ options: { customName: 'bookmarks' } })
 @Index({ folderId: '' })

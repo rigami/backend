@@ -10,7 +10,14 @@ import { BookmarksModule } from '@/bookmarks/module';
 
 @Module({
     imports: [
-        TypegooseModule.forRoot('mongodb://localhost/rigami-cache'),
+        TypegooseModule.forRootAsync({
+            connectionName: 'cache',
+            useFactory: async () => ({ uri: 'mongodb://localhost/rigami-cache' }),
+        }),
+        TypegooseModule.forRootAsync({
+            connectionName: 'main',
+            useFactory: async () => ({ uri: 'mongodb://localhost/rigami-main' }),
+        }),
         AuthModule,
         UsersModule,
         DevicesModule,

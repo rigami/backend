@@ -3,12 +3,12 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { JSDOM } from 'jsdom';
 import { SiteImage } from './entities/siteImage';
-import { Site as SiteScheme } from './schemas/site';
+import { SiteSchema } from './schemas/site';
 import { Site } from './entities/site';
 import { InjectModel } from 'nestjs-typegoose';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Interval } from '@nestjs/schedule';
-import { SiteImage as SiteImageScheme } from './schemas/siteImage';
+import { SiteImageSchema } from './schemas/siteImage';
 
 function getAttr(node, attrName) {
     return node.attributes.getNamedItem(attrName)?.textContent;
@@ -20,10 +20,10 @@ export class SiteParseService {
 
     constructor(
         private httpService: HttpService,
-        @InjectModel(SiteScheme)
-        private readonly siteModel: ReturnModelType<typeof SiteScheme>,
-        @InjectModel(SiteImageScheme)
-        private readonly siteImageModel: ReturnModelType<typeof SiteImageScheme>,
+        @InjectModel(SiteSchema)
+        private readonly siteModel: ReturnModelType<typeof SiteSchema>,
+        @InjectModel(SiteImageSchema)
+        private readonly siteImageModel: ReturnModelType<typeof SiteImageSchema>,
     ) {
         siteModel.deleteMany({}, (err) => {
             if (err) {

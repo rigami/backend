@@ -1,7 +1,8 @@
-import { Prop, Index } from '@typegoose/typegoose';
+import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 
+@ModelOptions({ options: { customName: 'devices' } })
 @Index({ holderUserId: 'text', type: 'text', deviceSign: 'text' })
-export class Device {
+export class DeviceSchema {
     @Prop({ required: true })
     holderUserId: string;
 

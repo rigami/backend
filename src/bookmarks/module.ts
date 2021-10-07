@@ -6,7 +6,7 @@ import { BookmarkSchema } from './schemas/bookmark';
 import { StateHashSchema } from '@/bookmarks/schemas/stateHash';
 
 @Module({
-    imports: [TypegooseModule.forFeature([BookmarkSchema, StateHashSchema])],
+    imports: [TypegooseModule.forFeature([BookmarkSchema, StateHashSchema], 'main')],
     providers: [BookmarksService],
     controllers: [BookmarksController],
     exports: [BookmarksService],

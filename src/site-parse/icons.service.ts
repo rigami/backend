@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
-import { SiteImage as SiteImageScheme } from './schemas/siteImage';
+import { SiteImageSchema } from './schemas/siteImage';
 import Sharp from 'sharp';
 import icoToPng from 'ico-to-png';
 import { InjectModel } from 'nestjs-typegoose';
@@ -10,7 +10,7 @@ import hash from '@/utils/hash';
 import fs from 'fs-extra';
 import { Interval } from '@nestjs/schedule';
 import { pick } from 'lodash';
-import { Site as SiteScheme } from '@/site-parse/schemas/site';
+import { SiteSchema } from '@/site-parse/schemas/site';
 
 async function ResizedSharp(p: string | Buffer, { width, height }: { width?: number; height?: number }): Sharp {
     const instance = Sharp(p);
@@ -48,10 +48,10 @@ export class IconsProcessingService {
 
     constructor(
         private httpService: HttpService,
-        @InjectModel(SiteScheme)
-        private readonly siteModel: ReturnModelType<typeof SiteScheme>,
-        @InjectModel(SiteImageScheme)
-        private readonly siteImageModel: ReturnModelType<typeof SiteImageScheme>,
+        @InjectModel(SiteSchema)
+        private readonly siteModel: ReturnModelType<typeof SiteSchema>,
+        @InjectModel(SiteImageSchema)
+        private readonly siteImageModel: ReturnModelType<typeof SiteImageSchema>,
     ) {
         siteImageModel.deleteMany({}, (err) => {
             if (err) {

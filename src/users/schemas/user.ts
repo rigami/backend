@@ -1,7 +1,8 @@
-import { Prop, Index } from '@typegoose/typegoose';
+import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 
+@ModelOptions({ options: { customName: 'users' } })
 @Index({ email: 'text' })
-export class User {
+export class UserSchema {
     @Prop({ required: true, unique: true })
     email!: string;
 

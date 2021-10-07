@@ -1,7 +1,8 @@
-import { Prop, Index } from '@typegoose/typegoose';
+import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 
+@ModelOptions({ options: { customName: 'site-images' } })
 @Index({ fileName: 'text' })
-export class SiteImage {
+export class SiteImageSchema {
     @Prop({
         required: true,
         unique: true,

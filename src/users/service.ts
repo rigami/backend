@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { User } from './entities/user';
 import { InjectModel } from 'nestjs-typegoose';
-import { User as UserScheme } from './schemas/user';
+import { UserSchema } from './schemas/user';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
 
@@ -10,8 +10,8 @@ export class UsersService {
     private readonly logger = new Logger(UsersService.name);
 
     constructor(
-        @InjectModel(UserScheme)
-        private readonly userModel: ReturnModelType<typeof UserScheme>,
+        @InjectModel(UserSchema)
+        private readonly userModel: ReturnModelType<typeof UserSchema>,
     ) {
         userModel.deleteMany({}, (err) => {
             if (err) {

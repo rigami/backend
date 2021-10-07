@@ -1,4 +1,4 @@
-import { Prop, Index } from '@typegoose/typegoose';
+import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 
 class SiteImageLite {
     @Prop({ required: true })
@@ -20,8 +20,9 @@ class SiteImageLite {
     type!: string;
 }
 
+@ModelOptions({ options: { customName: 'sites' } })
 @Index({ url: 'text', rootUrl: 'text', host: 'text' })
-export class Site {
+export class SiteSchema {
     @Prop({ unique: true })
     url!: string;
 

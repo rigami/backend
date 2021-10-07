@@ -3,8 +3,8 @@ import { SiteParseService } from './site.service';
 import { SiteParseController } from './controller';
 import { HttpModule } from '@nestjs/axios';
 import { TypegooseModule } from 'nestjs-typegoose';
-import { SiteImage } from './schemas/siteImage';
-import { Site } from './schemas/site';
+import { SiteImageSchema } from './schemas/siteImage';
+import { SiteSchema } from './schemas/site';
 import { IconsProcessingService } from './icons.service';
 
 @Module({
@@ -13,7 +13,7 @@ import { IconsProcessingService } from './icons.service';
             timeout: 5000,
             maxRedirects: 5,
         }),
-        TypegooseModule.forFeature([SiteImage, Site]),
+        TypegooseModule.forFeature([SiteImageSchema, SiteSchema], 'cache'),
     ],
     providers: [SiteParseService, IconsProcessingService],
     controllers: [SiteParseController],
