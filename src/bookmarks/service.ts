@@ -5,8 +5,7 @@ import { ReturnModelType } from '@typegoose/typegoose';
 import { Device } from '@/devices/entities/device';
 import { User } from '@/users/entities/user';
 import { State } from '@/bookmarks/entities/state';
-import { StateHashSchema } from '@/bookmarks/schemas/stateHash';
-import { v4 as UUIDv4 } from 'uuid';
+import { VCSService } from '@/vcs/service';
 
 @Injectable()
 export class BookmarksService {
@@ -15,8 +14,7 @@ export class BookmarksService {
     constructor(
         @InjectModel(BookmarkSchema)
         private readonly bookmarkModel: ReturnModelType<typeof BookmarkSchema>,
-        @InjectModel(StateHashSchema)
-        private readonly stateHashModel: ReturnModelType<typeof StateHashSchema>,
+        private readonly vcsService: VCSService,
     ) {
         bookmarkModel.deleteMany({}, (err) => {
             if (err) {
@@ -26,29 +24,10 @@ export class BookmarksService {
 
             this.logger.warn('Drop bookmarks! Because set development mode');
         });
-        stateHashModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            this.logger.warn('Drop bookmarks states! Because set development mode');
-        });
     }
 
-    async checkUpdate(localHash: string, user: User) {
-        const serverState = await this.stateHashModel.findOne({ userId: user.id });
-
-        if (!serverState || serverState.hash === localHash) {
-            return {
-                existUpdate: false,
-            };
-        }
-
-        return {
-            existUpdate: true,
-            serverHashState: serverState.hash,
-        };
+    async checkUpdate(commit: string, user: User) {
+        return await this.vcsService.checkUpdate(commit, user);
     }
 
     async pushState(state: State, user: User, device: Device): Promise<any> {
@@ -98,19 +77,34 @@ export class BookmarksService {
             );
         } */
 
-        const updateHash = UUIDv4();
+        const { commit, rawCommit } = await this.vcsService.commit(user);
 
-        await this.stateHashModel.create({
-            userId: user.id,
-            hash: updateHash,
-        });
+        console.log('commit:', commit)
+        console.log('rawCommit:', rawCommit)
 
         this.logger.log(
             `Finish push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
         );
 
-        return {
-            serverHashState: updateHash,
-        };
+        return { serverCommit: commit };
+    }
+
+    async pullState(commit: string, user: User, device: Device): Promise<any> {
+        this.logger.log(
+            `Pull bookmarks state for user id:${user.id} from device id:${device.id} start from commit:${commit}`,
+        );
+
+        /* const rawCommit: Commit = decodeCommit(commit);
+
+        console.log('rawCommit:', rawCommit);
+
+        const bookmarks = await this.bookmarkModel.find({
+            userId: user.id,
+            updateDate: {
+                $lte: rawCommit.date,
+            },
+        });
+
+        console.log('bookmarks:', bookmarks); */
     }
 }

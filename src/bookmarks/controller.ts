@@ -13,8 +13,8 @@ export class BookmarksController {
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('state/pull')
-    async getCurrentState(@CurrentUser() user: User, @CurrentDevice() device: Device) {
-        // return this.mergeService.createMergeRequest(user);
+    async getCurrentState(@Query('commit') commit: string, @CurrentUser() user: User, @CurrentDevice() device: Device) {
+        return this.bookmarksService.pullState(commit, user, device);
     }
 
     @UseGuards(JwtAccessAuthGuard)
@@ -25,7 +25,7 @@ export class BookmarksController {
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('state/check-update')
-    async checkUpdate(@Query('hash') localHash: string, @CurrentUser() user) {
-        return this.bookmarksService.checkUpdate(localHash, user);
+    async checkUpdate(@Query('commit') commit: string, @CurrentUser() user) {
+        return this.bookmarksService.checkUpdate(commit, user);
     }
 }
