@@ -6,6 +6,9 @@ import { Device } from '@/devices/entities/device';
 import { User } from '@/users/entities/user';
 import { State } from '@/bookmarks/entities/state';
 import { VCSService } from '@/vcs/service';
+import { Bookmark } from '@/bookmarks/entities/bookmark';
+import { plainToClass } from 'class-transformer';
+import { STATE_ACTION } from '@/sync/entities/stateEnitity';
 
 @Injectable()
 export class BookmarksService {
@@ -26,8 +29,8 @@ export class BookmarksService {
         });
     }
 
-    async checkUpdate(commit: string, user: User) {
-        return await this.vcsService.checkUpdate(commit, user);
+    async checkUpdate(localCommit: string, user: User) {
+        return await this.vcsService.checkUpdateOrInit(localCommit, user);
     }
 
     async pushState(state: State, user: User, device: Device): Promise<any> {
@@ -35,11 +38,19 @@ export class BookmarksService {
             `Push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
         );
 
-        console.log('state:', state);
+        const { rawCommit: rawLocalCommit } = this.vcsService.decodeCommit(state.commit);
+        const stage = await this.vcsService.stage(user);
 
         if (state.create.length !== 0) {
             this.logger.log(`Create bookmarks in state for user id:${user.id} from device id:${device.id}...`);
-            await this.bookmarkModel.create(state.create);
+            await this.bookmarkModel.create(
+                state.create.map((bookmark) => ({
+                    ...bookmark,
+                    lastAction: STATE_ACTION.create,
+                    userId: user.id,
+                    commit: stage.commit,
+                })),
+            );
         } else {
             this.logger.log(
                 `Nothing for create bookmarks in state for user id:${user.id} from device id:${device.id}...`,
@@ -48,7 +59,14 @@ export class BookmarksService {
 
         if (state.update.length !== 0) {
             this.logger.log(`Update bookmarks in state for user id:${user.id} from device id:${device.id}...`);
-            await this.bookmarkModel.updateMany(state.update, { $set: state.update });
+            await this.bookmarkModel.updateMany(state.update, {
+                $set: state.update.map((bookmark) => ({
+                    ...bookmark,
+                    lastAction: STATE_ACTION.update,
+                    userId: user.id,
+                    commit: stage.commit,
+                })),
+            });
         } else {
             this.logger.log(
                 `Nothing for update bookmarks in state for user id:${user.id} from device id:${device.id}...`,
@@ -77,10 +95,7 @@ export class BookmarksService {
             );
         } */
 
-        const { commit, rawCommit } = await this.vcsService.commit(user);
-
-        console.log('commit:', commit)
-        console.log('rawCommit:', rawCommit)
+        const { commit } = await this.vcsService.commit(stage, user);
 
         this.logger.log(
             `Finish push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
@@ -89,22 +104,21 @@ export class BookmarksService {
         return { serverCommit: commit };
     }
 
-    async pullState(commit: string, user: User, device: Device): Promise<any> {
+    async pullState(localCommit: string, user: User, device: Device): Promise<Bookmark[]> {
         this.logger.log(
-            `Pull bookmarks state for user id:${user.id} from device id:${device.id} start from commit:${commit}`,
+            `Pull bookmarks state for user id:${user.id} from device id:${device.id} start from commit:${localCommit}`,
         );
 
-        /* const rawCommit: Commit = decodeCommit(commit);
+        const { rawCommit: localRawCommit } = this.vcsService.decodeCommit(localCommit);
 
-        console.log('rawCommit:', rawCommit);
+        const bookmarks = await this.bookmarkModel
+            .find({
+                userId: user.id,
+                commit: { $gt: localRawCommit.head },
+            })
+            .lean()
+            .exec();
 
-        const bookmarks = await this.bookmarkModel.find({
-            userId: user.id,
-            updateDate: {
-                $lte: rawCommit.date,
-            },
-        });
-
-        console.log('bookmarks:', bookmarks); */
+        return bookmarks.map((bookmark) => plainToClass(Bookmark, bookmark, { excludeExtraneousValues: true }));
     }
 }

@@ -2,29 +2,20 @@ import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 import { IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 
-class BaseCommitSchema {
-    @Prop({ required: true })
-    readonly uuid!: string;
-
-    @Type(() => Date)
-    @Prop({ required: true })
-    readonly date!: Date;
-}
-
 @ModelOptions({ options: { customName: 'state' } })
 @Index({ userId: '' })
 export class CommitSchema {
     @Prop({ required: true })
-    // @Type(() => Commit)
-    rootCommit: BaseCommitSchema;
+    @Type(() => Date)
+    root: Date;
 
     @Prop()
-    // @Type(() => Commit)
-    previousCommit?: BaseCommitSchema;
+    @Type(() => Date)
+    previous?: Date;
 
     @Prop({ required: true })
-    // @Type(() => Commit)
-    headCommit: BaseCommitSchema;
+    @Type(() => Date)
+    head: Date;
 
     @Prop({ required: true })
     userId!: string;

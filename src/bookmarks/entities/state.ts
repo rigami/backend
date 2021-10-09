@@ -1,9 +1,12 @@
-import { IsOptional, ValidateNested } from 'class-validator';
+import { IsDefined, IsOptional, ValidateNested } from 'class-validator';
 import { Bookmark } from './bookmark';
 import { DeletedEntity } from '@/sync/entities/deletedEntity';
 import { Type } from 'class-transformer';
 
 export class State {
+    @IsDefined()
+    readonly commit!: string;
+
     @IsOptional()
     @ValidateNested({ each: true })
     @Type(() => Bookmark)

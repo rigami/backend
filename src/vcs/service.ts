@@ -4,9 +4,8 @@ import { ReturnModelType } from '@typegoose/typegoose';
 import { User } from '@/users/entities/user';
 import { CommitSchema } from './schemas/commit';
 import base64url from 'base64url';
-import { v4 as UUIDv4 } from 'uuid';
-import { BaseCommit, Commit } from './entities/commit';
-import { pick } from 'lodash';
+import { Commit } from './entities/commit';
+import { Stage } from '@/vcs/entities/stage';
 
 function decodeCommit(commit: string): Commit {
     return JSON.parse(base64url.decode(commit));
@@ -25,22 +24,20 @@ export class VCSService {
         private readonly commitModel: ReturnModelType<typeof CommitSchema>,
         @Inject('VCS_CONFIG_OPTIONS') private options,
     ) {
-        console.log('options:', options);
         commitModel.deleteMany({}, (err) => {
             if (err) {
                 this.logger.error(err);
                 return;
             }
 
-            this.logger.warn('Drop bookmarks states! Because set development mode');
+            this.logger.warn('Drop vcs states! Because set development mode');
         });
     }
 
-    async checkUpdate(commit: string, user: User) {
-        const serverState = await this.commitModel.findOne({ userId: user.id, model: this.options.moduleName });
-        const rawCommit: Commit = decodeCommit(commit);
+    async checkUpdate(localCommit: string, user: User) {
+        const { commit: serverCommit, rawCommit: rawServerCommit } = await this.getHead(user);
 
-        if (!serverState || serverState.headCommit.uuid === rawCommit.uuid) {
+        if (!serverCommit || !localCommit || rawServerCommit.head === decodeCommit(localCommit).head) {
             return {
                 existUpdate: false,
             };
@@ -48,56 +45,94 @@ export class VCSService {
 
         return {
             existUpdate: true,
-            serverCommit: encodeCommit({
-                ...serverState.headCommit,
-                rootCommit: serverState.rootCommit,
-                previousCommit: serverState.previousCommit,
-            }),
+            serverCommit: serverCommit,
         };
     }
 
-    async commit(user: User): Promise<any> {
+    async checkUpdateOrInit(localCommit: string, user: User) {
+        const { existUpdate, serverCommit } = await this.checkUpdate(localCommit, user);
+        let commit = serverCommit;
+
+        if (!serverCommit) {
+            this.logger.log(`Init repo for model:${this.options.moduleName} of user id:${user.id}`);
+            const stage = await this.stage(user);
+            commit = (await this.commit(stage, user)).commit;
+        }
+
+        return {
+            existUpdate,
+            serverCommit: commit,
+        };
+    }
+
+    decodeCommit(commit: string) {
+        return { commit, rawCommit: decodeCommit(commit) };
+    }
+
+    async getHead(user: User) {
+        const serverState = await this.commitModel.findOne({ userId: user.id, model: this.options.moduleName });
+
+        if (!serverState) {
+            return {
+                commit: null,
+                rawCommit: null,
+            };
+        }
+
+        const rawCommit: Commit = {
+            head: serverState.head,
+            root: serverState.root,
+            previous: serverState.previous,
+        };
+        const commit = encodeCommit(rawCommit);
+
+        return { commit, rawCommit };
+    }
+
+    async stage(user: User): Promise<Stage> {
+        this.logger.log(`Stage for model:${this.options.moduleName} of user id:${user.id}`);
+        const commit: Date = new Date();
+
+        return { commit };
+    }
+
+    async commit(stage: Stage, user: User): Promise<any> {
+        this.logger.log(`Commit for model:${this.options.moduleName} of user id:${user.id}`);
         let commit: string;
         let rawCommit: Commit;
         const previewCommit = await this.commitModel.findOne({ userId: user.id, model: this.options.moduleName });
 
         if (previewCommit) {
-            const rootCommit: BaseCommit = pick(previewCommit.rootCommit, ['uuid', 'date']);
-            const previousCommit: BaseCommit = pick(previewCommit.headCommit, ['uuid', 'date']);
-            const headCommit: BaseCommit = {
-                uuid: UUIDv4(),
-                date: new Date(),
-            };
+            const root = previewCommit.root;
+            const previous = previewCommit.head;
+            const head = stage.commit;
             rawCommit = {
-                ...headCommit,
-                rootCommit,
-                previousCommit,
+                head,
+                root,
+                previous,
             };
-            commit = base64url(JSON.stringify(rawCommit));
+            commit = encodeCommit(rawCommit);
 
             await this.commitModel.updateOne(
                 { userId: user.id, model: this.options.moduleName },
-                { $set: { headCommit, previousCommit, rootCommit, updateDate: rawCommit.date } },
+                { $set: { head, previous, root, updateDate: rawCommit.head } },
             );
         } else {
-            const rootCommit: Commit = {
-                uuid: UUIDv4(),
-                date: new Date(),
-            };
+            const head = stage.commit;
             rawCommit = {
-                ...rootCommit,
-                rootCommit,
-                previousCommit: null,
+                head,
+                root: head,
+                previous: null,
             };
             commit = encodeCommit(rawCommit);
 
             await this.commitModel.create({
                 userId: user.id,
                 model: this.options.moduleName,
-                rootCommit,
-                headCommit: rootCommit,
-                previousCommit: null,
-                updateDate: rawCommit.date,
+                root: head,
+                head,
+                previous: null,
+                updateDate: rawCommit.head,
             });
         }
 

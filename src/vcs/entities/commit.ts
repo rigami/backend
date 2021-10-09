@@ -1,21 +1,14 @@
 import { Type } from 'class-transformer';
-import { IsOptional, ValidateNested } from 'class-validator';
+import { IsOptional } from 'class-validator';
 
-export class BaseCommit {
-    readonly uuid!: string;
+export class Commit {
+    @Type(() => Date)
+    readonly head!: Date;
 
     @Type(() => Date)
-    readonly date!: Date;
-}
-
-export class Commit extends BaseCommit {
-    @IsOptional()
-    @ValidateNested()
-    @Type(() => BaseCommit)
-    readonly rootCommit?: BaseCommit;
+    readonly root?: Date;
 
     @IsOptional()
-    @ValidateNested()
-    @Type(() => BaseCommit)
-    readonly previousCommit?: BaseCommit;
+    @Type(() => Date)
+    readonly previous?: Date;
 }

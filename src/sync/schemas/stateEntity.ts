@@ -1,9 +1,10 @@
 import { Prop, Index } from '@typegoose/typegoose';
 import { IsEnum } from 'class-validator';
 import { STATE_ACTION } from '@/sync/entities/stateEnitity';
+import { CommittedEntitySchema } from '@/vcs/schemas/committedEntity';
 
 @Index({ hash: 'text', entityType: 'text', entityId: 'text', action: 'text' })
-export class StateEntitySchema {
+export class StateEntitySchema extends CommittedEntitySchema {
     @Prop({ required: true })
     userId!: string;
 
@@ -11,9 +12,9 @@ export class StateEntitySchema {
     @Prop({ required: true })
     lastAction!: string;
 
-    @Prop({ required: true, default: () => new Date() })
-    createDate?: Date;
+    @Prop({ required: true })
+    createDate!: Date;
 
-    @Prop({ required: true, default: () => new Date() })
-    updateDate?: Date;
+    @Prop({ required: true })
+    updateDate!: Date;
 }

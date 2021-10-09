@@ -1,5 +1,6 @@
 import { IsString, IsNumber, IsEnum, IsArray, IsUUID } from 'class-validator';
 import { StateEntity } from '@/sync/entities/stateEnitity';
+import { Expose } from 'class-transformer';
 
 export enum VARIANT {
     'poster' = 'poster',
@@ -8,12 +9,12 @@ export enum VARIANT {
 }
 
 export class Bookmark extends StateEntity {
-    @IsUUID() readonly id: string;
-    @IsEnum(VARIANT) readonly variant: string;
-    @IsString() readonly url: string;
-    @IsString() readonly imageUrl: string;
-    @IsString() readonly title: string;
-    @IsString() readonly description: string;
-    @IsArray() readonly tagsIds: string[];
-    @IsNumber() readonly folderId: number;
+    @Expose() @IsUUID() readonly id: string;
+    @Expose() @IsEnum(VARIANT) readonly variant: string;
+    @Expose() @IsString() readonly url: string;
+    @Expose() @IsString() readonly imageUrl: string;
+    @Expose() @IsString() readonly title: string;
+    @Expose() @IsString() readonly description: string;
+    @Expose() @IsArray() readonly tagsIds: string[];
+    @Expose() @IsNumber() readonly folderId: number;
 }
