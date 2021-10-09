@@ -39,6 +39,9 @@ export class BookmarksService {
         );
 
         const { rawCommit: rawLocalCommit } = this.vcsService.decodeCommit(state.commit);
+
+        // TODO: Added check all staged items time >= local commit head
+
         const stage = await this.vcsService.stage(user);
 
         if (state.create.length !== 0) {
@@ -73,27 +76,23 @@ export class BookmarksService {
             );
         }
 
-        /* if (state.delete.length !== 0) {
+        if (state.delete.length !== 0) {
             this.logger.log(`Delete bookmarks in state for user id:${user.id} from device id:${device.id}...`);
+
             await this.bookmarkModel.deleteMany(
-                map(state.delete, (deleteEntity) => ({
-                    userId: deleteEntity.userId,
-                    id: deleteEntity.entityId,
-                })).reduce(
-                    (acc, cur) => {
-                        return {
-                            userId: [...acc.userId, cur.userId],
-                            id: [...acc.id, cur.id],
-                        };
-                    },
-                    { userId: [], id: [] },
+                state.delete.reduce(
+                    (acc, cur) => ({
+                        userId: { $in: [...acc.userId.$in, user.id] },
+                        id: { $in: [...acc.id.$in, cur.entityId] },
+                    }),
+                    { userId: { $in: [] }, id: { $in: [] } },
                 ),
             );
         } else {
             this.logger.log(
                 `Nothing for delete bookmarks in state for user id:${user.id} from device id:${device.id}...`,
             );
-        } */
+        }
 
         const { commit } = await this.vcsService.commit(stage, user);
 
