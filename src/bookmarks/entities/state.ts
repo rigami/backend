@@ -1,6 +1,5 @@
 import { IsDefined, IsOptional, ValidateNested } from 'class-validator';
 import { Bookmark } from './bookmark';
-import { DeletedEntity } from '@/sync/entities/deletedEntity';
 import { Type } from 'class-transformer';
 
 export class State {
@@ -19,6 +18,5 @@ export class State {
 
     @IsOptional()
     @ValidateNested({ each: true })
-    @Type(() => DeletedEntity)
-    readonly delete?: DeletedEntity[] = [];
+    readonly delete?: string[] = [];
 }

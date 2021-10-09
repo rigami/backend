@@ -81,9 +81,9 @@ export class BookmarksService {
 
             await this.bookmarkModel.deleteMany(
                 state.delete.reduce(
-                    (acc, cur) => ({
+                    (acc, curEntityId) => ({
                         userId: { $in: [...acc.userId.$in, user.id] },
-                        id: { $in: [...acc.id.$in, cur.entityId] },
+                        id: { $in: [...acc.id.$in, curEntityId] },
                     }),
                     { userId: { $in: [] }, id: { $in: [] } },
                 ),

@@ -12,7 +12,10 @@ export class StateEntity extends CommittedEntity {
     @Expose()
     @IsUUID()
     readonly userId: string;
-    @IsEnum(STATE_ACTION) readonly lastAction: string;
+
+    @Expose()
+    @IsEnum(STATE_ACTION)
+    readonly lastAction: string;
 
     @Expose()
     @IsDate()
