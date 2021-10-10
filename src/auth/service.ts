@@ -20,7 +20,13 @@ export class AuthService {
     async validateUser(email: string, password: string): Promise<User> {
         const user = await this.usersService.findOne(email);
 
-        if (user && user.password === password) {
+
+        if (user && user.isVirtual) {
+            const { password, ...result } = user;
+            return result;
+        }
+
+        if (user && !user.isVirtual && user.password === password) {
             const { password, ...result } = user;
             return result;
         }
