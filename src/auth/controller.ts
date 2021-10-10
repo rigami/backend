@@ -47,21 +47,14 @@ export class AuthController {
     @UseGuards(JwtRefreshAuthGuard)
     @Get('token/refresh')
     async signDevice(@CurrentUser() user: User, @CurrentDevice() device: Device) {
-        return this.authService.getAccessToken(user, device);
+        const { accessToken } = await this.authService.getAccessToken(user, device);
+        const { expiredTimeout } = await this.authService.checkIsExpired(accessToken);
+
+        return { accessToken, expiredTimeout };
     }
 
     @Get('token/expired-check')
     async isExpired(@RequestHeaders() headers: Headers, @Req() request) {
-        try {
-            const { exp } = await this.jwtService.verify(ExtractJwt.fromAuthHeaderAsBearerToken()(request));
-
-            return { expired: false, expiredTimeout: exp * 1000 - Date.now() };
-        } catch (e) {
-            if (e.name === 'TokenExpiredError') {
-                return { expired: true };
-            }
-
-            throw e;
-        }
+        return this.authService.checkIsExpired(ExtractJwt.fromAuthHeaderAsBearerToken()(request));
     }
 }

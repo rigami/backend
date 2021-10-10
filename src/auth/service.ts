@@ -78,6 +78,20 @@ export class AuthService {
         return { accessToken: this.jwtService.sign(payload, { expiresIn: '10m' }) };
     }
 
+    async checkIsExpired(jwtToken: string) {
+        try {
+            const { exp } = await this.jwtService.verify(jwtToken);
+
+            return { expired: false, expiredTimeout: exp * 1000 - Date.now() };
+        } catch (e) {
+            if (e.name === 'TokenExpiredError') {
+                return { expired: true, expiredTimeout: 0 };
+            }
+
+            throw e;
+        }
+    }
+
     async login(loginInfo: LoginInfo) {
         const device = await this.signDevice(loginInfo.user, {
             userAgent: loginInfo.userAgent,
