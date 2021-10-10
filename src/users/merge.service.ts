@@ -7,6 +7,7 @@ import generateMergeCode from '@/users/utils/generateMergeCode';
 import { Interval } from '@nestjs/schedule';
 import { UsersService } from '@/users/service';
 import { DevicesService } from '@/devices/service';
+import { SSEService } from '@/sse/service';
 
 @Injectable()
 export class MergeUsersService {
@@ -15,6 +16,7 @@ export class MergeUsersService {
     constructor(
         private usersService: UsersService,
         private devicesService: DevicesService,
+        private sseService: SSEService,
         @InjectModel(UserMergeRequestSchema)
         private readonly mergeUserRequestModel: ReturnModelType<typeof UserMergeRequestSchema>,
     ) {
@@ -29,7 +31,6 @@ export class MergeUsersService {
     }
 
     async createMergeRequest(user: User) {
-        this.logger.log(`Create merge request by user id:${user.id}...`);
         let request;
         const code = generateMergeCode(6);
         const expiredDate = new Date(Date.now() + 10 * 60 * 1000);
@@ -55,8 +56,22 @@ export class MergeUsersService {
         return { code: request.code };
     }
 
+    crateAndWatchMergeRequest(user: User) {
+        this.logger.log(`Create merge request by user id:${user.id}...`);
+
+        const queue = this.sseService.createQueue('merge-request', user.id);
+
+        this.createMergeRequest(user).then(({ code }) => {
+            this.sseService.addEvent('merge-request', user.id, { type: 'code', data: code });
+        });
+
+        return queue;
+    }
+
     async deleteMergeRequest(user: User) {
         this.logger.log(`Force delete merge request by user id:${user.id}...`);
+
+        this.sseService.closeQueue('merge-request', user.id);
 
         await this.mergeUserRequestModel.deleteOne({ mergedUserId: user.id });
     }
@@ -87,6 +102,14 @@ export class MergeUsersService {
 
         await this.usersService.findByIdAndDelete(request.mergedUserId);
 
+        this.sseService.addEvent('merge-request', mergedUser.id, {
+            type: 'done-merge',
+            data: {
+                newUsername: fullMasterUser.email,
+                newPassword: fullMasterUser.password,
+            },
+        });
+
         this.logger.log(`Remove user id:${mergedUser.id}...`);
 
         return {
@@ -104,6 +127,10 @@ export class MergeUsersService {
                 expiredDate: {
                     $lte: new Date(),
                 },
+            });
+
+            mergeRequestsRemove.forEach(({ mergedUserId }) => {
+                this.sseService.closeQueue('merge-request', mergedUserId);
             });
 
             await this.mergeUserRequestModel.deleteMany({

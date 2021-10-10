@@ -6,9 +6,14 @@ import { UserSchema } from './schemas/user';
 import { UserMergeRequestSchema } from './schemas/userMergeRequest';
 import { MergeUsersService } from '@/users/merge.service';
 import { DevicesModule } from '@/devices/module';
+import { SSEModule } from '@/sse/module';
 
 @Module({
-    imports: [TypegooseModule.forFeature([UserSchema, UserMergeRequestSchema], 'main'), DevicesModule],
+    imports: [
+        TypegooseModule.forFeature([UserSchema, UserMergeRequestSchema], 'main'),
+        DevicesModule,
+        SSEModule.register(),
+    ],
     providers: [UsersService, MergeUsersService],
     controllers: [UsersController],
     exports: [UsersService],
