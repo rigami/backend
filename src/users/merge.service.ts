@@ -55,6 +55,12 @@ export class MergeUsersService {
         return { code: request.code };
     }
 
+    async deleteMergeRequest(user: User) {
+        this.logger.log(`Force delete merge request by user id:${user.id}...`);
+
+        await this.mergeUserRequestModel.deleteOne({ mergedUserId: user.id });
+    }
+
     async mergeUsers(masterUser: User, code: string) {
         const request = await this.mergeUserRequestModel.findOneAndDelete({ code });
 
@@ -67,6 +73,9 @@ export class MergeUsersService {
 
         if (!mergedUser) {
             throw new Error('NOT_EXIST_MERGED_USER');
+        }
+        if (mergedUser.id === masterUser.id) {
+            throw new Error('SAME_USER');
         }
         this.logger.log(`Start merge request user id:${mergedUser.id} into user id:${masterUser.id}...`);
 
