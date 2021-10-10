@@ -20,7 +20,6 @@ export class AuthService {
     async validateUser(email: string, password: string): Promise<User> {
         const user = await this.usersService.findOne(email);
 
-
         if (user && user.isVirtual) {
             const { password, ...result } = user;
             return result;
@@ -57,6 +56,18 @@ export class AuthService {
         } catch (e) {
             throw new BadRequestException(e.message);
         }
+    }
+
+    async verifyDevice(user: User, device: Device) {
+        this.logger.log(`Verify device of user id:${user.id}...`);
+
+        if (!user) {
+            this.logger.warn(`User id:${user.id} not exist. It is not possible to verify the device`);
+
+            throw new BadRequestException(`User id:${user.id} not exist`);
+        }
+
+        return await this.devicesService.findOneByTokenAndUser(device.token, user.id);
     }
 
     async signDevice(user: User, device: Device) {
@@ -99,11 +110,20 @@ export class AuthService {
     }
 
     async login(loginInfo: LoginInfo) {
-        const device = await this.signDevice(loginInfo.user, {
+        let device = await this.verifyDevice(loginInfo.user, {
             userAgent: loginInfo.userAgent,
             type: loginInfo.deviceType,
             token: loginInfo.deviceToken,
         });
+
+        if (!device) {
+            this.logger.log(`Not verify device for user id:${loginInfo.user.id}...`);
+            device = await this.signDevice(loginInfo.user, {
+                userAgent: loginInfo.userAgent,
+                type: loginInfo.deviceType,
+                token: loginInfo.deviceToken,
+            });
+        }
 
         const accessToken = await this.getAccessToken(loginInfo.user, device);
 

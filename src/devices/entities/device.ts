@@ -10,7 +10,7 @@ export enum DEVICE_TYPE {
 }
 
 export class Device {
-    @IsNumber() @IsOptional() readonly id?: string;
+    @IsUUID() @IsOptional() readonly id?: string;
     @IsString() @IsOptional() readonly holderUserId?: string;
     @IsString() readonly userAgent: string;
     @IsEnum(DEVICE_TYPE) readonly type: string;

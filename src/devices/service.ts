@@ -24,6 +24,22 @@ export class DevicesService {
         });
     }
 
+    async findOneByTokenAndUser(token: string, userId: string): Promise<Device | null> {
+        const device = await this.deviceModel.findOne({ token, holderUserId: userId });
+
+        if (!device) return null;
+
+        return {
+            id: device.id,
+            holderUserId: device.holderUserId,
+            userAgent: device.userAgent,
+            type: device.type,
+            token: device.token,
+            deviceSign: device.deviceSign,
+            createDate: device.createDate,
+        };
+    }
+
     async findOneById(id: string): Promise<Device | null> {
         const device = await this.deviceModel.findOne({ id });
 
