@@ -6,9 +6,10 @@ import { CommitSchema } from './schemas/commit';
 import base64url from 'base64url';
 import { Commit } from './entities/commit';
 import { Stage } from '@/vcs/entities/stage';
+import { plainToClass } from 'class-transformer';
 
 function decodeCommit(commit: string): Commit {
-    return JSON.parse(base64url.decode(commit));
+    return plainToClass(Commit, JSON.parse(base64url.decode(commit)));
 }
 
 function encodeCommit(rawCommit: Commit): string {
@@ -40,6 +41,7 @@ export class VCSService {
         if (!serverCommit || !localCommit || rawServerCommit.head === decodeCommit(localCommit).head) {
             return {
                 existUpdate: false,
+                serverCommit: serverCommit,
             };
         }
 
