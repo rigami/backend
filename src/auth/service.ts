@@ -34,7 +34,18 @@ export class AuthService {
 
     async registration(registrationInfo: RegistrationInfo) {
         try {
-            return await this.usersService.createUser(registrationInfo.email, registrationInfo.password);
+            const user = await this.usersService.createUser(registrationInfo.email, registrationInfo.password);
+
+            const loginInfo = await this.login({
+                user,
+                ...registrationInfo,
+            });
+
+            return {
+                username: user.email,
+                deviceToken: registrationInfo.deviceToken,
+                ...loginInfo,
+            };
         } catch (e) {
             throw new BadRequestException(e.message);
         }
@@ -50,6 +61,7 @@ export class AuthService {
             });
 
             return {
+                username: user.email,
                 deviceToken: deviceRegistrationInfo.deviceToken,
                 ...loginInfo,
             };

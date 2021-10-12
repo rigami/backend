@@ -16,8 +16,18 @@ export class AuthController {
     constructor(private authService: AuthService, private jwtService: JwtService) {}
 
     @Post('registration')
-    async registration(@Body() registrationInfo: RegistrationInfo) {
-        await this.authService.registration(registrationInfo);
+    async registration(
+        @Body() registrationInfo: RegistrationInfo,
+        @RequestHeaders() headers: Headers,
+        @Ip() ip: string,
+    ) {
+        await this.authService.registration({
+            ...registrationInfo,
+            ip,
+            userAgent: headers['user-agent'],
+            deviceType: headers['device-type'],
+            deviceToken: headers['device-token'],
+        });
 
         return;
     }
