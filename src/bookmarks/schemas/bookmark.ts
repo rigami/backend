@@ -14,13 +14,13 @@ export class BookmarkSchema extends StateEntitySchema {
     @Prop({ required: true })
     url: string;
 
-    @Prop({ required: true })
+    @Prop()
     imageUrl: string;
 
     @Prop({ required: true })
     title: string;
 
-    @Prop({ required: true })
+    @Prop()
     description: string;
 
     @Prop({ required: true })
