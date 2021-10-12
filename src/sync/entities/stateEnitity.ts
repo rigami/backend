@@ -1,4 +1,4 @@
-import { IsEnum, IsDate, IsUUID } from 'class-validator';
+import { IsEnum, IsDate, IsUUID, IsOptional } from 'class-validator';
 import { Expose, Type } from 'class-transformer';
 import { CommittedEntity } from '@/vcs/entities/committedEntity';
 
@@ -11,7 +11,8 @@ export enum STATE_ACTION {
 export class StateEntity extends CommittedEntity {
     @Expose()
     @IsUUID()
-    readonly userId: string;
+    @IsOptional()
+    readonly userId?: string;
 
     @Expose()
     @IsEnum(STATE_ACTION)
