@@ -1,10 +1,21 @@
-import { IsDefined, IsOptional, ValidateNested } from 'class-validator';
+import { IsDate, IsOptional, IsUUID, ValidateNested } from 'class-validator';
 import { Bookmark } from './bookmark';
-import { Type } from 'class-transformer';
+import { Expose, Type } from 'class-transformer';
+
+class DeleteEntity {
+    @Expose()
+    @IsUUID()
+    readonly id: string;
+
+    @Expose()
+    @IsDate()
+    @Type(() => Date)
+    readonly updateDate: Date;
+}
 
 export class State {
-    @IsDefined()
-    readonly commit!: string;
+    // @IsDefined()
+    readonly commit?: string;
 
     @IsOptional()
     @ValidateNested({ each: true })
@@ -18,5 +29,6 @@ export class State {
 
     @IsOptional()
     @ValidateNested({ each: true })
-    readonly delete?: string[] = [];
+    @Type(() => DeleteEntity)
+    readonly delete?: DeleteEntity[] = [];
 }

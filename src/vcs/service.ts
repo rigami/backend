@@ -38,6 +38,8 @@ export class VCSService {
     async checkUpdate(localCommit: string, user: User) {
         const { commit: serverCommit, rawCommit: rawServerCommit } = await this.getHead(user);
 
+        // console.log('checkUpdate:', rawServerCommit, decodeCommit(localCommit));
+
         if (!serverCommit || !localCommit || rawServerCommit.head === decodeCommit(localCommit).head) {
             return {
                 existUpdate: false,

@@ -4,9 +4,13 @@ import { BookmarksController } from './controller';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { BookmarkSchema } from './schemas/bookmark';
 import { VCSModule } from '@/vcs/module';
+import { DeletedBookmarkSchema } from '@/bookmarks/schemas/deletedBookmark';
 
 @Module({
-    imports: [TypegooseModule.forFeature([BookmarkSchema], 'main'), VCSModule.register('bookmarks')],
+    imports: [
+        TypegooseModule.forFeature([BookmarkSchema, DeletedBookmarkSchema], 'main'),
+        VCSModule.register('bookmarks'),
+    ],
     providers: [BookmarksService],
     controllers: [BookmarksController],
     exports: [BookmarksService],
