@@ -144,7 +144,7 @@ export class BookmarksService {
     async pullState(localCommit: string, user: User, device: Device): Promise<State> {
         const { commit: serverCommit } = await this.vcsService.getHead(user);
 
-        if (serverCommit === localCommit) return;
+        if (serverCommit === localCommit) return null;
 
         this.logger.log(
             `Pull bookmarks state for user id:${user.id} from device id:${device.id} start from commit:${localCommit}`,

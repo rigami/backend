@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Put, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Put, Query, Res, UseGuards } from '@nestjs/common';
 import { JwtAccessAuthGuard } from '@/auth/strategies/jwt/auth.guard';
 import { CurrentUser } from '@/auth/utils/currentUser.param.decorator';
 import { BookmarksService } from '@/bookmarks/service';
@@ -13,8 +13,14 @@ export class BookmarksController {
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('state/pull')
-    async getCurrentState(@Query('commit') commit: string, @CurrentUser() user: User, @CurrentDevice() device: Device) {
-        return this.bookmarksService.pullState(commit, user, device);
+    async getCurrentState(@Query('commit') commit: string, @CurrentUser() user: User, @CurrentDevice() device: Device, @Res() response) {
+        const changes = await this.bookmarksService.pullState(commit, user, device);
+
+        if (changes) {
+            response.send(changes);
+        } else {
+            response.status(HttpStatus.NOT_MODIFIED).send();
+        }
     }
 
     @UseGuards(JwtAccessAuthGuard)
