@@ -2,7 +2,7 @@ import { IsDate, IsOptional, IsUUID, ValidateNested } from 'class-validator';
 import { Bookmark } from './bookmark';
 import { Expose, Type } from 'class-transformer';
 
-class DeleteEntity {
+export class DeleteEntity {
     @Expose()
     @IsUUID()
     readonly id: string;

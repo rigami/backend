@@ -4,12 +4,13 @@ import { BookmarkSchema } from './schemas/bookmark';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Device } from '@/devices/entities/device';
 import { User } from '@/users/entities/user';
-import { State } from '@/bookmarks/entities/state';
+import { DeleteEntity, State } from '@/bookmarks/entities/state';
 import { VCSService } from '@/vcs/service';
 import { Bookmark } from '@/bookmarks/entities/bookmark';
 import { plainToClass } from 'class-transformer';
 import { STATE_ACTION } from '@/sync/entities/stateEnitity';
 import { DeletedBookmarkSchema } from '@/bookmarks/schemas/deletedBookmark';
+import { Stage } from '@/vcs/entities/stage';
 
 @Injectable()
 export class BookmarksService {
@@ -36,6 +37,63 @@ export class BookmarksService {
         return await this.vcsService.checkUpdateOrInit(localCommit, user);
     }
 
+    async saveNewBookmarks(bookmarks: Bookmark[], user: User, stage: Stage) {
+        await this.bookmarkModel.create(
+            bookmarks.map((bookmark) => ({
+                ...bookmark,
+                lastAction: STATE_ACTION.create,
+                userId: user.id,
+                commit: stage.commit,
+            })),
+        );
+    }
+
+    async updateBookmarks(bookmarks: Bookmark[], user: User, stage: Stage) {
+        await Promise.all(
+            bookmarks.map((bookmark) =>
+                this.bookmarkModel.update({ id: bookmark.id, userId: user.id }, [
+                    {
+                        $set: {
+                            ...bookmark,
+                            userId: user.id,
+                            commit: stage.commit,
+                            lastAction: {
+                                $cond: {
+                                    if: { $gt: [bookmark.updateDate, '$updateDate'] },
+                                    then: STATE_ACTION.update,
+                                    else: '$lastAction',
+                                },
+                            },
+                        },
+                    },
+                ]),
+            ),
+        );
+    }
+
+    async deleteBookmarks(bookmarks: DeleteEntity[], user: User, stage: Stage) {
+        await Promise.all(
+            bookmarks.map((bookmark) =>
+                this.bookmarkModel.update({ id: bookmark.id, userId: user.id }, [
+                    {
+                        $set: {
+                            ...bookmark,
+                            userId: user.id,
+                            commit: stage.commit,
+                            lastAction: {
+                                $cond: {
+                                    if: { $gt: [bookmark.updateDate, '$updateDate'] },
+                                    then: STATE_ACTION.delete,
+                                    else: '$lastAction',
+                                },
+                            },
+                        },
+                    },
+                ]),
+            ),
+        );
+    }
+
     async pushState(state: State, user: User, device: Device): Promise<any> {
         this.logger.log(
             `Push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
@@ -49,14 +107,7 @@ export class BookmarksService {
 
         if (state.create.length !== 0) {
             this.logger.log(`Create bookmarks in state for user id:${user.id} from device id:${device.id}...`);
-            await this.bookmarkModel.create(
-                state.create.map((bookmark) => ({
-                    ...bookmark,
-                    lastAction: STATE_ACTION.create,
-                    userId: user.id,
-                    commit: stage.commit,
-                })),
-            );
+            await this.saveNewBookmarks(state.create, user, stage);
         } else {
             this.logger.log(
                 `Nothing for create bookmarks in state for user id:${user.id} from device id:${device.id}...`,
@@ -65,21 +116,7 @@ export class BookmarksService {
 
         if (state.update.length !== 0) {
             this.logger.log(`Update bookmarks in state for user id:${user.id} from device id:${device.id}...`);
-            await Promise.all(
-                state.update.map((bookmark) =>
-                    this.bookmarkModel.update(
-                        { id: bookmark.id, userId: user.id },
-                        {
-                            $set: {
-                                ...bookmark,
-                                lastAction: STATE_ACTION.update,
-                                userId: user.id,
-                                commit: stage.commit,
-                            },
-                        },
-                    ),
-                ),
-            );
+            await this.updateBookmarks(state.update, user, stage);
         } else {
             this.logger.log(
                 `Nothing for update bookmarks in state for user id:${user.id} from device id:${device.id}...`,
@@ -88,24 +125,7 @@ export class BookmarksService {
 
         if (state.delete.length !== 0) {
             this.logger.log(`Delete bookmarks in state for user id:${user.id} from device id:${device.id}...`);
-
-            await this.bookmarkModel.deleteMany(
-                state.delete.reduce(
-                    (acc, deletedEntity) => ({
-                        userId: { $in: [...acc.userId.$in, user.id] },
-                        id: { $in: [...acc.id.$in, deletedEntity.id] },
-                    }),
-                    { userId: { $in: [] }, id: { $in: [] } },
-                ),
-            );
-            await this.deletedBookmarkModel.create(
-                state.delete.map((deletedEntity) => ({
-                    id: deletedEntity.id,
-                    userId: user.id,
-                    updateDate: deletedEntity.updateDate,
-                    commit: stage.commit,
-                })),
-            );
+            await this.deleteBookmarks(state.delete, user, stage);
         } else {
             this.logger.log(
                 `Nothing for delete bookmarks in state for user id:${user.id} from device id:${device.id}...`,
@@ -122,11 +142,14 @@ export class BookmarksService {
     }
 
     async pullState(localCommit: string, user: User, device: Device): Promise<State> {
+        const { commit: serverCommit } = await this.vcsService.getHead(user);
+
+        if (serverCommit === localCommit) return;
+
         this.logger.log(
             `Pull bookmarks state for user id:${user.id} from device id:${device.id} start from commit:${localCommit}`,
         );
 
-        const { commit: serverCommit } = await this.vcsService.getHead(user);
         const { rawCommit: localRawCommit } = this.vcsService.decodeCommit(localCommit);
 
         const createBookmarks = await this.bookmarkModel
@@ -147,9 +170,10 @@ export class BookmarksService {
             .lean()
             .exec();
 
-        const deletedBookmarks = await this.deletedBookmarkModel
+        const deletedBookmarks = await this.bookmarkModel
             .find({
                 userId: user.id,
+                lastAction: STATE_ACTION.delete,
                 commit: { $gt: localRawCommit.head },
             })
             .lean()
