@@ -24,16 +24,7 @@ export class SiteParseService {
         private readonly siteModel: ReturnModelType<typeof SiteSchema>,
         @InjectModel(SiteImageSchema)
         private readonly siteImageModel: ReturnModelType<typeof SiteImageSchema>,
-    ) {
-        siteModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            this.logger.warn('Drop sites cache! Because set development mode');
-        });
-    }
+    ) {}
 
     async parseSite(url: string): Promise<Site> {
         let request: any;

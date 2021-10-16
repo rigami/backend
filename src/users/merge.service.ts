@@ -19,16 +19,7 @@ export class MergeUsersService {
         private sseService: SSEService,
         @InjectModel(UserMergeRequestSchema)
         private readonly mergeUserRequestModel: ReturnModelType<typeof UserMergeRequestSchema>,
-    ) {
-        mergeUserRequestModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            this.logger.warn('Drop merge users request! Because set development mode');
-        });
-    }
+    ) {}
 
     async createMergeRequest(user: User) {
         let request;

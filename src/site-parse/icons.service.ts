@@ -52,20 +52,7 @@ export class IconsProcessingService {
         private readonly siteModel: ReturnModelType<typeof SiteSchema>,
         @InjectModel(SiteImageSchema)
         private readonly siteImageModel: ReturnModelType<typeof SiteImageSchema>,
-    ) {
-        siteImageModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            fs.remove('cache/images')
-                .then(() => {
-                    this.logger.warn('Drop icons cache! Because set development mode');
-                })
-                .catch((err) => this.logger.error(err));
-        });
-    }
+    ) {}
 
     async processingImage(url: string): Promise<any> {
         console.time('pre parse icon');

@@ -22,16 +22,7 @@ export class BookmarksService {
         @InjectModel(DeletedBookmarkSchema)
         private readonly deletedBookmarkModel: ReturnModelType<typeof DeletedBookmarkSchema>,
         private readonly vcsService: VCSService,
-    ) {
-        /* bookmarkModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            this.logger.warn('Drop bookmarks! Because set development mode');
-        }); */
-    }
+    ) {}
 
     async checkUpdate(localCommit: string, user: User) {
         return await this.vcsService.checkUpdate(localCommit, user);

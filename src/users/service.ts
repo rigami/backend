@@ -12,16 +12,7 @@ export class UsersService {
     constructor(
         @InjectModel(UserSchema)
         private readonly userModel: ReturnModelType<typeof UserSchema>,
-    ) {
-        userModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            this.logger.warn('Drop users! Because set development mode');
-        });
-    }
+    ) {}
 
     async findOneById(userId: string): Promise<User | null> {
         const user = await this.userModel.findOne({ id: userId });

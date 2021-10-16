@@ -24,16 +24,7 @@ export class VCSService {
         @InjectModel(CommitSchema)
         private readonly commitModel: ReturnModelType<typeof CommitSchema>,
         @Inject('VCS_CONFIG_OPTIONS') private options,
-    ) {
-        commitModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            this.logger.warn('Drop vcs states! Because set development mode');
-        });
-    }
+    ) {}
 
     async checkUpdate(localCommit: string, user: User) {
         const { commit: serverCommit } = await this.getHead(user);

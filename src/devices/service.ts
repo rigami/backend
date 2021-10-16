@@ -13,16 +13,7 @@ export class DevicesService {
     constructor(
         @InjectModel(DeviceSchema)
         private readonly deviceModel: ReturnModelType<typeof DeviceSchema>,
-    ) {
-        deviceModel.deleteMany({}, (err) => {
-            if (err) {
-                this.logger.error(err);
-                return;
-            }
-
-            this.logger.warn('Drop devices! Because set development mode');
-        });
-    }
+    ) {}
 
     async findOneByTokenAndUser(token: string, userId: string): Promise<Device | null> {
         const device = await this.deviceModel.findOne({ token, holderUserId: userId });
