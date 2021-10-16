@@ -36,11 +36,16 @@ export class VCSService {
     }
 
     async checkUpdate(localCommit: string, user: User) {
-        const { commit: serverCommit, rawCommit: rawServerCommit } = await this.getHead(user);
+        const { commit: serverCommit } = await this.getHead(user);
 
-        // console.log('checkUpdate:', rawServerCommit, decodeCommit(localCommit));
+        if (serverCommit && !localCommit) {
+            return {
+                existUpdate: true,
+                serverCommit: serverCommit,
+            };
+        }
 
-        if (!serverCommit || !localCommit || rawServerCommit.head === decodeCommit(localCommit).head) {
+        if (!serverCommit || !localCommit || serverCommit === localCommit) {
             return {
                 existUpdate: false,
                 serverCommit: serverCommit,
@@ -50,22 +55,6 @@ export class VCSService {
         return {
             existUpdate: true,
             serverCommit: serverCommit,
-        };
-    }
-
-    async checkUpdateOrInit(localCommit: string, user: User) {
-        const { existUpdate, serverCommit } = await this.checkUpdate(localCommit, user);
-        let commit = serverCommit;
-
-        if (!serverCommit) {
-            this.logger.log(`Init repo for model:${this.options.moduleName} of user id:${user.id}`);
-            const stage = await this.stage(user);
-            commit = (await this.commit(stage, user)).commit;
-        }
-
-        return {
-            existUpdate,
-            serverCommit: commit,
         };
     }
 
