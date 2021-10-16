@@ -1,10 +1,10 @@
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
-import { SyncModule } from '@/sync/module';
+import { SyncModule } from '@/utils/sync/module';
 import { INestApplication } from '@nestjs/common';
 import { TypegooseModule } from 'nestjs-typegoose';
-import { AuthModule } from '@/auth/module';
-import { UsersModule } from '@/users/module';
+import { AuthModule } from '@/auth/auth/module';
+import { UsersModule } from '@/auth/users/module';
 import { v4 as UUIDv4 } from 'uuid';
 
 describe('Sync (e2e)', () => {

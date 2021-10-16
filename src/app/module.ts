@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { UsersModule } from '@/users/module';
-import { AuthModule } from '@/auth/module';
+import { UsersModule } from '@/auth/users/module';
+import { AuthModule } from '@/auth/auth/module';
 import { SiteParseModule } from '@/site-parse/module';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './controller';
-import { DevicesModule } from '@/devices/module';
-import { BookmarksModule } from '@/bookmarks/module';
+import { DevicesModule } from '@/auth/devices/module';
+import { BookmarksModule } from '@/sync/bookmarks/module';
 
 @Module({
     imports: [

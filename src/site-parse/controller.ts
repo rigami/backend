@@ -4,7 +4,7 @@ import { Site } from './entities/site';
 import { Readable } from 'stream';
 import hash from '@/utils/hash';
 import { IconsProcessingService } from './icons.service';
-import { JwtAccessAuthGuard } from '@/auth/strategies/jwt/auth.guard';
+import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
 
 @Controller('v1/site-parse')
 export class SiteParseController {
