@@ -14,7 +14,7 @@ export class DeleteEntity {
 }
 
 export class State {
-    // @IsDefined()
+    @IsOptional()
     readonly commit?: string;
 
     @IsOptional()

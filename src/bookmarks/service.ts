@@ -34,7 +34,7 @@ export class BookmarksService {
     }
 
     async checkUpdate(localCommit: string, user: User) {
-        return await this.vcsService.checkUpdateOrInit(localCommit, user);
+        return await this.vcsService.checkUpdate(localCommit, user);
     }
 
     async saveNewBookmarks(bookmarks: Bookmark[], user: User, stage: Stage) {
@@ -99,6 +99,12 @@ export class BookmarksService {
             `Push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
         );
 
+        const head = await this.vcsService.getHead(user);
+
+        if (state.commit && state.commit !== head.commit) {
+            throw new Error('PULL_FIRST');
+        }
+
         // const { rawCommit: rawLocalCommit } = this.vcsService.decodeCommit(state.commit);
 
         // TODO: Added check all staged items time >= local commit head
@@ -150,31 +156,41 @@ export class BookmarksService {
             `Pull bookmarks state for user id:${user.id} from device id:${device.id} start from commit:${localCommit}`,
         );
 
-        const { rawCommit: localRawCommit } = this.vcsService.decodeCommit(localCommit);
+        let query;
+
+        if (localCommit) {
+            const { rawCommit: localRawCommit } = this.vcsService.decodeCommit(localCommit);
+
+            query = {
+                userId: user.id,
+                commit: { $gt: localRawCommit.head },
+            };
+        } else {
+            query = {
+                userId: user.id,
+            };
+        }
 
         const createBookmarks = await this.bookmarkModel
             .find({
-                userId: user.id,
+                ...query,
                 lastAction: STATE_ACTION.create,
-                commit: { $gt: localRawCommit.head },
             })
             .lean()
             .exec();
 
         const updateBookmarks = await this.bookmarkModel
             .find({
-                userId: user.id,
+                ...query,
                 lastAction: STATE_ACTION.update,
-                commit: { $gt: localRawCommit.head },
             })
             .lean()
             .exec();
 
         const deletedBookmarks = await this.bookmarkModel
             .find({
-                userId: user.id,
+                ...query,
                 lastAction: STATE_ACTION.delete,
-                commit: { $gt: localRawCommit.head },
             })
             .lean()
             .exec();
@@ -187,7 +203,9 @@ export class BookmarksService {
             update: updateBookmarks.map((bookmark) =>
                 plainToClass(Bookmark, bookmark, { excludeExtraneousValues: true }),
             ),
-            delete: deletedBookmarks.map((bookmark) => bookmark.id),
+            delete: deletedBookmarks.map((bookmark) =>
+                plainToClass(DeleteEntity, bookmark, { excludeExtraneousValues: true }),
+            ),
         };
     }
 }

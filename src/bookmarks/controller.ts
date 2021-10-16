@@ -13,7 +13,12 @@ export class BookmarksController {
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('state/pull')
-    async getCurrentState(@Query('commit') commit: string, @CurrentUser() user: User, @CurrentDevice() device: Device, @Res() response) {
+    async getCurrentState(
+        @Query('commit') commit: string,
+        @CurrentUser() user: User,
+        @CurrentDevice() device: Device,
+        @Res() response,
+    ) {
         const changes = await this.bookmarksService.pullState(commit, user, device);
 
         if (changes) {
@@ -25,8 +30,19 @@ export class BookmarksController {
 
     @UseGuards(JwtAccessAuthGuard)
     @Put('state/push')
-    async setState(@Body() state: State, @CurrentUser() user, @CurrentDevice() device: Device) {
-        return this.bookmarksService.pushState(state, user, device);
+    async setState(@Body() state: State, @CurrentUser() user, @CurrentDevice() device: Device, @Res() response) {
+        try {
+            const currState = await this.bookmarksService.pushState(state, user, device);
+
+            response.send(currState);
+        } catch (e) {
+            if (e.message === 'PUL_FIRST') {
+                response.status(HttpStatus.AMBIGUOUS).send();
+            } else {
+                console.error(e);
+                throw e;
+            }
+        }
     }
 
     @UseGuards(JwtAccessAuthGuard)
