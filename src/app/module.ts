@@ -6,7 +6,7 @@ import { TypegooseModule } from 'nestjs-typegoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './controller';
 import { DevicesModule } from '@/auth/devices/module';
-import { BookmarksModule } from '@/sync/bookmarks/module';
+import { SyncModule } from '@/sync/module';
 
 @Module({
     imports: [
@@ -22,7 +22,7 @@ import { BookmarksModule } from '@/sync/bookmarks/module';
         UsersModule,
         DevicesModule,
         SiteParseModule,
-        BookmarksModule,
+        SyncModule,
         ScheduleModule.forRoot(),
     ],
     controllers: [AppController],

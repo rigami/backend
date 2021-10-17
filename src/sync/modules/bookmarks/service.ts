@@ -4,29 +4,22 @@ import { BookmarkSchema } from './schemas/bookmark';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { DeleteEntity, State } from '@/sync/bookmarks/entities/state';
-import { VCSService } from '@/utils/vcs/service';
-import { Bookmark } from '@/sync/bookmarks/entities/bookmark';
+import { DeleteEntity } from '@/sync/entities/state';
+import { Bookmark } from '@/sync/modules/bookmarks/entities/bookmark';
 import { plainToClass } from 'class-transformer';
-import { STATE_ACTION } from '@/utils/sync/entities/stateEnitity';
-import { DeletedBookmarkSchema } from '@/sync/bookmarks/schemas/deletedBookmark';
+import { STATE_ACTION } from '@/sync/entities/stateEnitity';
 import { Stage } from '@/utils/vcs/entities/stage';
+import { Commit } from '@/utils/vcs/entities/commit';
+import { BookmarksState } from '@/sync/modules/bookmarks/entities/state';
 
 @Injectable()
-export class BookmarksService {
-    private readonly logger = new Logger(BookmarksService.name);
+export class BookmarksSyncService {
+    private readonly logger = new Logger(BookmarksSyncService.name);
 
     constructor(
         @InjectModel(BookmarkSchema)
         private readonly bookmarkModel: ReturnModelType<typeof BookmarkSchema>,
-        @InjectModel(DeletedBookmarkSchema)
-        private readonly deletedBookmarkModel: ReturnModelType<typeof DeletedBookmarkSchema>,
-        private readonly vcsService: VCSService,
     ) {}
-
-    async checkUpdate(localCommit: string, user: User) {
-        return await this.vcsService.checkUpdate(localCommit, user);
-    }
 
     async saveNewBookmarks(bookmarks: Bookmark[], user: User, stage: Stage) {
         await this.bookmarkModel.create(
@@ -85,22 +78,10 @@ export class BookmarksService {
         );
     }
 
-    async pushState(state: State, user: User, device: Device): Promise<any> {
+    async pushState(stage: Stage, state: BookmarksState, user: User, device: Device): Promise<any> {
         this.logger.log(
             `Push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
         );
-
-        const head = await this.vcsService.getHead(user);
-
-        if (state.commit && state.commit !== head.commit) {
-            throw new Error('PULL_FIRST');
-        }
-
-        // const { rawCommit: rawLocalCommit } = this.vcsService.decodeCommit(state.commit);
-
-        // TODO: Added check all staged items time >= local commit head
-
-        const stage = await this.vcsService.stage(user);
 
         if (state.create.length !== 0) {
             this.logger.log(`Create bookmarks in state for user id:${user.id} from device id:${device.id}...`);
@@ -129,32 +110,20 @@ export class BookmarksService {
             );
         }
 
-        const { commit } = await this.vcsService.commit(stage, user);
-
         this.logger.log(
             `Finish push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
         );
-
-        return { serverCommit: commit };
     }
 
-    async pullState(localCommit: string, user: User, device: Device): Promise<State> {
-        const { commit: serverCommit } = await this.vcsService.getHead(user);
-
-        if (serverCommit === localCommit) return null;
-
-        this.logger.log(
-            `Pull bookmarks state for user id:${user.id} from device id:${device.id} start from commit:${localCommit}`,
-        );
+    async pullState(commit: Commit, user: User, device: Device): Promise<BookmarksState> {
+        this.logger.log(`Pull bookmarks state for user id:${user.id} from device id:${device.id}`);
 
         let query;
 
-        if (localCommit) {
-            const { rawCommit: localRawCommit } = this.vcsService.decodeCommit(localCommit);
-
+        if (commit) {
             query = {
                 userId: user.id,
-                commit: { $gt: localRawCommit.head },
+                commit: { $gt: commit.head },
             };
         } else {
             query = {
@@ -187,7 +156,6 @@ export class BookmarksService {
             .exec();
 
         return {
-            commit: serverCommit,
             create: createBookmarks.map((bookmark) =>
                 plainToClass(Bookmark, bookmark, { excludeExtraneousValues: true }),
             ),

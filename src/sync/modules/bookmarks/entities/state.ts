@@ -1,22 +1,9 @@
-import { IsDate, IsOptional, IsUUID, ValidateNested } from 'class-validator';
+import { IsOptional, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 import { Bookmark } from './bookmark';
-import { Expose, Type } from 'class-transformer';
+import { DeleteEntity } from '@/sync/entities/state';
 
-export class DeleteEntity {
-    @Expose()
-    @IsUUID()
-    readonly id: string;
-
-    @Expose()
-    @IsDate()
-    @Type(() => Date)
-    readonly updateDate: Date;
-}
-
-export class State {
-    @IsOptional()
-    readonly commit?: string;
-
+export class BookmarksState {
     @IsOptional()
     @ValidateNested({ each: true })
     @Type(() => Bookmark)

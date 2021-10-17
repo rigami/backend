@@ -1,25 +1,25 @@
 import { Body, Controller, Get, HttpStatus, Put, Query, Res, UseGuards } from '@nestjs/common';
 import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
 import { CurrentUser } from '@/auth/auth/utils/currentUser.param.decorator';
-import { BookmarksService } from '@/sync/bookmarks/service';
 import { CurrentDevice } from '@/auth/auth/utils/currentDevice.param.decorator';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { State } from '@/sync/bookmarks/entities/state';
+import { State } from '@/sync/entities/state';
+import { SyncService } from '@/sync/service';
 
-@Controller('v1/bookmarks')
-export class BookmarksController {
-    constructor(private bookmarksService: BookmarksService) {}
+@Controller('v1/sync')
+export class SyncController {
+    constructor(private syncService: SyncService) {}
 
     @UseGuards(JwtAccessAuthGuard)
-    @Get('state/pull')
+    @Get('pull')
     async getCurrentState(
         @Query('commit') commit: string,
         @CurrentUser() user: User,
         @CurrentDevice() device: Device,
         @Res() response,
     ) {
-        const changes = await this.bookmarksService.pullState(commit, user, device);
+        const changes = await this.syncService.pullState(commit, user, device);
 
         if (changes) {
             response.send(changes);
@@ -29,14 +29,14 @@ export class BookmarksController {
     }
 
     @UseGuards(JwtAccessAuthGuard)
-    @Put('state/push')
+    @Put('push')
     async setState(@Body() state: State, @CurrentUser() user, @CurrentDevice() device: Device, @Res() response) {
         try {
-            const currState = await this.bookmarksService.pushState(state, user, device);
+            const currState = await this.syncService.pushState(state, user, device);
 
             response.send(currState);
         } catch (e) {
-            if (e.message === 'PUL_FIRST') {
+            if (e.message === 'PULL_FIRST') {
                 response.status(HttpStatus.AMBIGUOUS).send();
             } else {
                 console.error(e);
@@ -46,8 +46,8 @@ export class BookmarksController {
     }
 
     @UseGuards(JwtAccessAuthGuard)
-    @Get('state/check-update')
+    @Get('check-update')
     async checkUpdate(@Query('commit') commit: string, @CurrentUser() user) {
-        return this.bookmarksService.checkUpdate(commit, user);
+        return this.syncService.checkUpdate(commit, user);
     }
 }

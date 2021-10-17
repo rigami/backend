@@ -1,5 +1,5 @@
-import { IsString, IsNumber, IsEnum, IsArray, IsUUID } from 'class-validator';
-import { StateEntity } from '@/utils/sync/entities/stateEnitity';
+import { IsString, IsEnum, IsArray, IsUUID } from 'class-validator';
+import { StateEntity } from '@/sync/entities/stateEnitity';
 import { Expose } from 'class-transformer';
 
 export enum VARIANT {
@@ -16,5 +16,5 @@ export class Bookmark extends StateEntity {
     @Expose() @IsString() readonly title: string;
     @Expose() @IsString() readonly description: string;
     @Expose() @IsArray() readonly tagsIds: string[];
-    @Expose() @IsNumber() readonly folderId: number;
+    @Expose() @IsUUID() readonly folderId: string;
 }

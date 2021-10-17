@@ -1,5 +1,5 @@
 import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
-import { StateEntitySchema } from '@/utils/sync/schemas/stateEntity';
+import { StateEntitySchema } from '@/sync/schemas/stateEntity';
 import { v4 as UUIDv4 } from 'uuid';
 
 @ModelOptions({ options: { customName: 'bookmarks' } })
@@ -27,5 +27,5 @@ export class BookmarkSchema extends StateEntitySchema {
     tagsIds: string[];
 
     @Prop({ required: true })
-    folderId: number;
+    folderId: string;
 }
