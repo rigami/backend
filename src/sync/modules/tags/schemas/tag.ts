@@ -12,5 +12,5 @@ export class TagSchema extends StateEntitySchema {
     name: string;
 
     @Prop({ required: true })
-    color: string;
+    colorKey: number;
 }
