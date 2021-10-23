@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpStatus, Put, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpStatus, Put, Query, UseGuards } from '@nestjs/common';
 import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
 import { CurUser } from '@/auth/auth/utils/currentUser.param.decorator';
 import { CurDevice } from '@/auth/auth/utils/currentDevice.param.decorator';
@@ -12,6 +12,7 @@ import { Response } from 'express';
 import { PushResponseEntity } from '@/sync/entities/pushResponse';
 import { CheckUpdateRequestEntity } from '@/sync/entities/checkUpdateRequest';
 import { CheckUpdateResponseEntity } from '@/sync/entities/checkUpdateResponse';
+import { Res } from '@/utils/response.param.decorator';
 
 @Controller('v1/sync')
 export class SyncController {
@@ -28,27 +29,20 @@ export class SyncController {
         const changes = await this.syncService.pullState(pullInfo, user, device);
 
         if (changes) {
-            response.send(changes);
-        } else {
-            response.status(HttpStatus.NOT_MODIFIED).send();
+            return changes;
         }
+
+        response.status(HttpStatus.NOT_MODIFIED);
     }
 
     @UseGuards(JwtAccessAuthGuard)
     @Put('push')
-    async setState(@Body() state: State, @CurrentUser() user, @CurrentDevice() device: Device, @Res() response) {
-        try {
-            const currState = await this.syncService.pushState(state, user, device);
-
-            response.send(currState);
-        } catch (e) {
-            if (e.message === 'PULL_FIRST') {
-                response.status(HttpStatus.AMBIGUOUS).send();
-            } else {
-                console.error(e);
-                throw e;
-            }
-        }
+    async setState(
+        @Body() pushInfo: PushRequestEntity,
+        @CurUser() user: User,
+        @CurDevice() device: Device,
+    ): Promise<PushResponseEntity> {
+        return await this.syncService.pushState(pushInfo, user, device);
     }
 
     @UseGuards(JwtAccessAuthGuard)
