@@ -6,7 +6,7 @@ import { TagsState } from '@/sync/modules/tags/entities/state';
 
 export class PushRequestEntity {
     @IsOptional()
-    readonly localCommit?: string;
+    readonly localCommit?: string = null;
 
     @Expose()
     @IsDefined()
