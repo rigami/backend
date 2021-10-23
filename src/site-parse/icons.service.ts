@@ -173,10 +173,16 @@ export class IconsProcessingService {
                     $lte: new Date(),
                 },
             });
+            const count = await this.siteModel.count();
 
             await Promise.all(imagesRemove.map((row) => fs.remove(`cache/images/${row.fileName}.png`)));
 
-            this.logger.log(`The cache has been cleared. Removed ${imagesRemove.length} outdated icons`);
+            this.logger.log(
+                `The icons cache has been cleared
+                Result:
+                Removed outdated: ${imagesRemove.length}
+                In cache:         ${count}`,
+            );
         } catch (e) {
             this.logger.error(e);
         }

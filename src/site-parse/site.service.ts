@@ -211,8 +211,14 @@ export class SiteParseService {
                     $lte: new Date(),
                 },
             });
+            const count = await this.siteModel.count();
 
-            this.logger.log(`The cache has been cleared. Removed ${sitesRemove.length} outdated sites`);
+            this.logger.log(
+                `The sites cache has been cleared
+                Result:
+                Removed outdated: ${sitesRemove.length}
+                In cache:         ${count}`,
+            );
         } catch (e) {
             this.logger.error(e);
         }
