@@ -1,23 +1,12 @@
-import { IsDate, IsDefined, IsOptional, IsUUID, ValidateNested } from 'class-validator';
 import { Expose, Type } from 'class-transformer';
+import { IsDefined, IsOptional, ValidateNested } from 'class-validator';
 import { BookmarksState } from '@/sync/modules/bookmarks/entities/state';
 import { FoldersState } from '@/sync/modules/folders/entities/state';
 import { TagsState } from '@/sync/modules/tags/entities/state';
 
-export class DeleteEntity {
-    @Expose()
-    @IsUUID()
-    readonly id: string;
-
-    @Expose()
-    @IsDate()
-    @Type(() => Date)
-    readonly updateDate: Date;
-}
-
-export class State {
+export class PushRequestEntity {
     @IsOptional()
-    readonly commit?: string;
+    readonly localCommit?: string;
 
     @Expose()
     @IsDefined()

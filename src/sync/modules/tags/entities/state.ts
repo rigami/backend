@@ -1,7 +1,7 @@
 import { IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Tag } from './tag';
-import { DeleteEntity } from '@/sync/entities/state';
+import { DeleteEntity } from '@/sync/entities/delete';
 
 export class TagsState {
     @IsOptional()

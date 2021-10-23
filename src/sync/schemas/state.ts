@@ -1,6 +1,6 @@
 import { Prop, Index } from '@typegoose/typegoose';
 import { IsEnum } from 'class-validator';
-import { STATE_ACTION } from '@/sync/entities/stateEnitity';
+import { STATE_ACTION } from '@/sync/entities/synced';
 import { CommittedEntitySchema } from '@/utils/vcs/schemas/committedEntity';
 
 @Index({ hash: 'text', entityType: 'text', entityId: 'text', action: 'text' })

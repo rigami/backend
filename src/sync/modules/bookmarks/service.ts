@@ -4,10 +4,10 @@ import { BookmarkSchema } from './schemas/bookmark';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { DeleteEntity } from '@/sync/entities/state';
+import { DeleteEntity } from '@/sync/entities/delete';
 import { Bookmark } from '@/sync/modules/bookmarks/entities/bookmark';
 import { plainToClass } from 'class-transformer';
-import { STATE_ACTION } from '@/sync/entities/stateEnitity';
+import { STATE_ACTION } from '@/sync/entities/synced';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { Commit } from '@/utils/vcs/entities/commit';
 import { BookmarksState } from '@/sync/modules/bookmarks/entities/state';
@@ -80,50 +80,35 @@ export class BookmarksSyncService {
 
     async pushState(stage: Stage, state: BookmarksState, user: User, device: Device): Promise<any> {
         this.logger.log(
-            `Push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
+            `Push bookmarks state for user.id:${user.id} device.id:${device.id}
+            Summary:
+            Create: ${state.create.length}
+            Update: ${state.update.length}
+            Delete: ${state.delete.length}`,
         );
 
         if (state.create.length !== 0) {
-            this.logger.log(`Create bookmarks in state for user id:${user.id} from device id:${device.id}...`);
             await this.saveNewBookmarks(state.create, user, stage);
-        } else {
-            this.logger.log(
-                `Nothing for create bookmarks in state for user id:${user.id} from device id:${device.id}...`,
-            );
         }
 
         if (state.update.length !== 0) {
-            this.logger.log(`Update bookmarks in state for user id:${user.id} from device id:${device.id}...`);
             await this.updateBookmarks(state.update, user, stage);
-        } else {
-            this.logger.log(
-                `Nothing for update bookmarks in state for user id:${user.id} from device id:${device.id}...`,
-            );
         }
 
         if (state.delete.length !== 0) {
-            this.logger.log(`Delete bookmarks in state for user id:${user.id} from device id:${device.id}...`);
             await this.deleteBookmarks(state.delete, user, stage);
-        } else {
-            this.logger.log(
-                `Nothing for delete bookmarks in state for user id:${user.id} from device id:${device.id}...`,
-            );
         }
-
-        this.logger.log(
-            `Finish push bookmarks state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
-        );
     }
 
-    async pullState(commit: Commit, user: User, device: Device): Promise<BookmarksState> {
-        this.logger.log(`Pull bookmarks state for user id:${user.id} from device id:${device.id}`);
+    async pullState(fromCommit: Commit, toCommit: Commit, user: User, device: Device): Promise<BookmarksState> {
+        this.logger.log(`Pull bookmarks state for user.id:${user.id} device.id:${device.id}`);
 
         let query;
 
-        if (commit) {
+        if (fromCommit) {
             query = {
                 userId: user.id,
-                commit: { $gt: commit.head },
+                commit: { $gt: fromCommit.head },
             };
         } else {
             query = {

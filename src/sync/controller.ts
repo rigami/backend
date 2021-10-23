@@ -4,8 +4,14 @@ import { CurrentUser } from '@/auth/auth/utils/currentUser.param.decorator';
 import { CurrentDevice } from '@/auth/auth/utils/currentDevice.param.decorator';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { State } from '@/sync/entities/state';
 import { SyncService } from '@/sync/service';
+import { PullRequestEntity } from '@/sync/entities/pullReqest';
+import { PushRequestEntity } from '@/sync/entities/pushRequest';
+import { PullResponseEntity } from '@/sync/entities/pullResponse';
+import { Response } from 'express';
+import { PushResponseEntity } from '@/sync/entities/pushResponse';
+import { CheckUpdateRequestEntity } from '@/sync/entities/checkUpdateRequest';
+import { CheckUpdateResponseEntity } from '@/sync/entities/checkUpdateResponse';
 
 @Controller('v1/sync')
 export class SyncController {
@@ -14,12 +20,12 @@ export class SyncController {
     @UseGuards(JwtAccessAuthGuard)
     @Get('pull')
     async getCurrentState(
-        @Query('commit') commit: string,
         @CurrentUser() user: User,
         @CurrentDevice() device: Device,
-        @Res() response,
-    ) {
-        const changes = await this.syncService.pullState(commit, user, device);
+        @Query() pullInfo: PullRequestEntity,
+        @Res() response: Response,
+    ): Promise<PullResponseEntity> {
+        const changes = await this.syncService.pullState(pullInfo, user, device);
 
         if (changes) {
             response.send(changes);
@@ -48,6 +54,6 @@ export class SyncController {
     @UseGuards(JwtAccessAuthGuard)
     @Get('check-update')
     async checkUpdate(@Query('commit') commit: string, @CurrentUser() user) {
-        return this.syncService.checkUpdate(commit, user);
+        return this.syncService.checkUpdate(checkUpdateInfo, user);
     }
 }

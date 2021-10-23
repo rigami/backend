@@ -1,5 +1,5 @@
 import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
-import { StateEntitySchema } from '@/sync/schemas/stateEntity';
+import { StateEntitySchema } from '@/sync/schemas/state';
 import { v4 as UUIDv4 } from 'uuid';
 
 @ModelOptions({ options: { customName: 'tags' } })

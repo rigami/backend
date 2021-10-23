@@ -1,8 +1,8 @@
 import { IsOptional, IsString, IsUUID } from 'class-validator';
-import { StateEntity } from '@/sync/entities/stateEnitity';
+import { SyncedEntity } from '@/sync/entities/synced';
 import { Expose } from 'class-transformer';
 
-export class Folder extends StateEntity {
+export class Folder extends SyncedEntity {
     @Expose()
     @IsUUID()
     readonly id: string;

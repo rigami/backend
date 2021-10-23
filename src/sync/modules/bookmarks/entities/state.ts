@@ -1,7 +1,7 @@
 import { IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { Bookmark } from './bookmark';
-import { DeleteEntity } from '@/sync/entities/state';
+import { DeleteEntity } from '@/sync/entities/delete';
 
 export class BookmarksState {
     @IsOptional()

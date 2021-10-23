@@ -32,20 +32,20 @@ export class VCSService {
         if (serverCommit && !localCommit) {
             return {
                 existUpdate: true,
-                serverCommit: serverCommit,
+                headCommit: serverCommit,
             };
         }
 
         if (!serverCommit || !localCommit || serverCommit === localCommit) {
             return {
                 existUpdate: false,
-                serverCommit: serverCommit,
+                headCommit: serverCommit,
             };
         }
 
         return {
             existUpdate: true,
-            serverCommit: serverCommit,
+            headCommit: serverCommit,
         };
     }
 

@@ -1,5 +1,5 @@
 import { IsString, IsEnum, IsArray, IsUUID } from 'class-validator';
-import { StateEntity } from '@/sync/entities/stateEnitity';
+import { SyncedEntity } from '@/sync/entities/synced';
 import { Expose } from 'class-transformer';
 
 export enum VARIANT {
@@ -8,7 +8,7 @@ export enum VARIANT {
     'symbol' = 'symbol',
 }
 
-export class Bookmark extends StateEntity {
+export class Bookmark extends SyncedEntity {
     @Expose() @IsUUID() readonly id: string;
     @Expose() @IsEnum(VARIANT) readonly variant: string;
     @Expose() @IsString() readonly url: string;

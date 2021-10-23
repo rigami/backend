@@ -4,10 +4,10 @@ import { FolderSchema } from './schemas/folder';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { DeleteEntity } from '@/sync/entities/state';
+import { DeleteEntity } from '@/sync/entities/delete';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { Commit } from '@/utils/vcs/entities/commit';
-import { STATE_ACTION } from '@/sync/entities/stateEnitity';
+import { STATE_ACTION } from '@/sync/entities/synced';
 import { Folder } from '@/sync/modules/folders/entities/folder';
 import { FoldersState } from '@/sync/modules/folders/entities/state';
 import { plainToClass } from 'class-transformer';
@@ -80,50 +80,35 @@ export class FoldersSyncService {
 
     async pushState(stage: Stage, state: FoldersState, user: User, device: Device): Promise<any> {
         this.logger.log(
-            `Push folders state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
+            `Push folders state for user.id:${user.id} device.id:${device.id}
+            Summary:
+            Create: ${state.create.length}
+            Update: ${state.update.length}
+            Delete: ${state.delete.length}`,
         );
 
         if (state.create.length !== 0) {
-            this.logger.log(`Create folders in state for user id:${user.id} from device id:${device.id}...`);
             await this.saveNewFolders(state.create, user, stage);
-        } else {
-            this.logger.log(
-                `Nothing for create folders in state for user id:${user.id} from device id:${device.id}...`,
-            );
         }
 
         if (state.update.length !== 0) {
-            this.logger.log(`Update folders in state for user id:${user.id} from device id:${device.id}...`);
             await this.updateFolders(state.update, user, stage);
-        } else {
-            this.logger.log(
-                `Nothing for update folders in state for user id:${user.id} from device id:${device.id}...`,
-            );
         }
 
         if (state.delete.length !== 0) {
-            this.logger.log(`Delete folders in state for user id:${user.id} from device id:${device.id}...`);
             await this.deleteFolders(state.delete, user, stage);
-        } else {
-            this.logger.log(
-                `Nothing for delete folders in state for user id:${user.id} from device id:${device.id}...`,
-            );
         }
-
-        this.logger.log(
-            `Finish push folders state for user id:${user.id} from device id:${device.id} { create: ${state.create.length} update: ${state.update.length} delete: ${state.delete.length} }`,
-        );
     }
 
-    async pullState(commit: Commit, user: User, device: Device): Promise<FoldersState> {
-        this.logger.log(`Pull folders state for user id:${user.id} from device id:${device.id}`);
+    async pullState(fromCommit: Commit, toCommit: Commit, user: User, device: Device): Promise<FoldersState> {
+        this.logger.log(`Pull folders state for user.id:${user.id} device.id:${device.id}`);
 
         let query;
 
-        if (commit) {
+        if (fromCommit) {
             query = {
                 userId: user.id,
-                commit: { $gt: commit.head },
+                commit: { $gt: fromCommit.head },
             };
         } else {
             query = {
