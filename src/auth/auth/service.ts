@@ -71,31 +71,31 @@ export class AuthService {
     }
 
     async verifyDevice(user: User, device: Device) {
-        this.logger.log(`Verify device of user id:${user.id}...`);
+        this.logger.log(`Verify device for user.id:${user.id}...`);
 
         if (!user) {
-            this.logger.warn(`User id:${user.id} not exist. It is not possible to verify the device`);
+            this.logger.warn(`Not exist user.id:${user.id}. It is not possible to verify the device`);
 
-            throw new BadRequestException(`User id:${user.id} not exist`);
+            throw new BadRequestException(`Not exist user.id:${user.id}`);
         }
 
         return await this.devicesService.findOneByTokenAndUser(device.token, user.id);
     }
 
     async signDevice(user: User, device: Device) {
-        this.logger.log(`Sign device for user id:${user.id}...`);
+        this.logger.log(`Sign device for user.id:${user.id}...`);
 
         if (!user) {
-            this.logger.warn(`User id:${user.id} not exist. It is not possible to sign the device`);
+            this.logger.warn(`Not exist user.id:${user.id}. It is not possible to sign the device`);
 
-            throw new BadRequestException(`User id:${user.id} not exist`);
+            throw new BadRequestException(`Not exist user.id:${user.id}`);
         }
 
         return await this.devicesService.createDevice(user, device);
     }
 
     async getAccessToken(user: User, device: Device) {
-        this.logger.log(`Renewal access token for user id:${user.id} on device id:${device.id}...`);
+        this.logger.log(`Renewal access token for user.id:${user.id} device.id:${device.id}...`);
 
         const payload = {
             tokenType: 'accessToken',
@@ -129,7 +129,7 @@ export class AuthService {
         });
 
         if (!device) {
-            this.logger.log(`Not verify device for user id:${loginInfo.user.id}...`);
+            this.logger.log(`Not verify device for user.id:${loginInfo.user.id}...`);
             device = await this.signDevice(loginInfo.user, {
                 userAgent: loginInfo.userAgent,
                 type: loginInfo.deviceType,
