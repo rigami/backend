@@ -44,7 +44,7 @@ export class SyncService {
         this.logger.log(`Success push state {user.id:${user.id} device.id:${device.id}}`);
 
         return {
-            existUpdate: false,
+            existUpdate: serverHeadCommit !== pushRequest.localCommit,
             fromCommit: pushRequest.localCommit || null,
             toCommit: serverHeadCommit,
             headCommit: newServerHeadCommit,
