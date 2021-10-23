@@ -1,6 +1,5 @@
 import { IsEnum, IsDate, IsUUID, IsOptional } from 'class-validator';
 import { Expose, Type } from 'class-transformer';
-import { CommittedEntity } from '@/utils/vcs/entities/committed';
 
 export enum STATE_ACTION {
     'create' = 'create',
@@ -8,7 +7,7 @@ export enum STATE_ACTION {
     'delete' = 'delete',
 }
 
-export class SyncedEntity extends CommittedEntity {
+export class SyncedEntity {
     @Expose()
     @IsUUID()
     @IsOptional()
@@ -27,4 +26,14 @@ export class SyncedEntity extends CommittedEntity {
     @IsDate()
     @Type(() => Date)
     readonly updateDate: Date;
+
+    @IsDate()
+    @IsOptional()
+    @Type(() => Date)
+    readonly createCommit?: Date;
+
+    @IsDate()
+    @IsOptional()
+    @Type(() => Date)
+    readonly updateCommit?: Date;
 }

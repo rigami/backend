@@ -27,7 +27,8 @@ export class TagsSyncService {
                 ...folder,
                 lastAction: STATE_ACTION.create,
                 userId: user.id,
-                commit: stage.commit,
+                createCommit: stage.commit,
+                updateCommit: stage.commit,
             })),
         );
     }
@@ -40,7 +41,7 @@ export class TagsSyncService {
                         $set: {
                             ...folder,
                             userId: user.id,
-                            commit: stage.commit,
+                            updateCommit: stage.commit,
                             lastAction: {
                                 $cond: {
                                     if: { $gt: [folder.updateDate, '$updateDate'] },
@@ -63,7 +64,7 @@ export class TagsSyncService {
                         $set: {
                             ...folder,
                             userId: user.id,
-                            commit: stage.commit,
+                            updateCommit: stage.commit,
                             lastAction: {
                                 $cond: {
                                     if: { $gt: [folder.updateDate, '$updateDate'] },
@@ -108,7 +109,7 @@ export class TagsSyncService {
         if (fromCommit) {
             query = {
                 userId: user.id,
-                commit: { $gt: fromCommit.head },
+                updateCommit: { $gt: fromCommit.head },
             };
         } else {
             query = {
