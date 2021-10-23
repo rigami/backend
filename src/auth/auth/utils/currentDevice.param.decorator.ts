@@ -5,3 +5,5 @@ export const CurrentDevice = createParamDecorator((data: unknown, ctx: Execution
     const request = ctx.switchToHttp().getRequest();
     return request.user.device;
 });
+
+export const CurDevice = CurrentDevice;

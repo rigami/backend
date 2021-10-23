@@ -6,3 +6,5 @@ export const CurrentUser = createParamDecorator((data: unknown, ctx: ExecutionCo
 
     return request.user.user;
 });
+
+export const CurUser = CurrentUser;

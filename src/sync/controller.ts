@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpStatus, Put, Query, Res, UseGuards } from '@nestjs/common';
 import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
-import { CurrentUser } from '@/auth/auth/utils/currentUser.param.decorator';
-import { CurrentDevice } from '@/auth/auth/utils/currentDevice.param.decorator';
+import { CurUser } from '@/auth/auth/utils/currentUser.param.decorator';
+import { CurDevice } from '@/auth/auth/utils/currentDevice.param.decorator';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
 import { SyncService } from '@/sync/service';
@@ -20,9 +20,9 @@ export class SyncController {
     @UseGuards(JwtAccessAuthGuard)
     @Get('pull')
     async getCurrentState(
-        @CurrentUser() user: User,
-        @CurrentDevice() device: Device,
         @Query() pullInfo: PullRequestEntity,
+        @CurUser() user: User,
+        @CurDevice() device: Device,
         @Res() response: Response,
     ): Promise<PullResponseEntity> {
         const changes = await this.syncService.pullState(pullInfo, user, device);
@@ -53,7 +53,10 @@ export class SyncController {
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('check-update')
-    async checkUpdate(@Query('commit') commit: string, @CurrentUser() user) {
+    async checkUpdate(
+        @Query() checkUpdateInfo: CheckUpdateRequestEntity,
+        @CurUser() user: User,
+    ): Promise<CheckUpdateResponseEntity> {
         return this.syncService.checkUpdate(checkUpdateInfo, user);
     }
 }
