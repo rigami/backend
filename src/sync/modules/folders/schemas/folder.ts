@@ -3,12 +3,13 @@ import { StateEntitySchema } from '@/sync/schemas/state';
 import { v4 as UUIDv4 } from 'uuid';
 
 @ModelOptions({ options: { customName: 'folders' } })
-@Index({ folderId: '' })
+@Index({ userId: 1, parentId: 1, name: 1 }, { unique: true })
+@Index({ userId: 1, id: 1 }, { unique: true })
 export class FolderSchema extends StateEntitySchema {
     @Prop({ required: true, default: () => UUIDv4() })
     id: string;
 
-    @Prop()
+    @Prop({ required: true })
     parentId: string;
 
     @Prop({ required: true })

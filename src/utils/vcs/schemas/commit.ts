@@ -3,7 +3,7 @@ import { IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 
 @ModelOptions({ options: { customName: 'state' } })
-@Index({ userId: '' })
+@Index({ userId: 1, model: 1 }, { unique: true })
 export class CommitSchema {
     @Prop({ required: true })
     @Type(() => Date)

@@ -3,7 +3,7 @@ import { v4 as UUIDv4 } from 'uuid';
 
 @ModelOptions({ options: { customName: 'users' } })
 export class UserSchema {
-    @Prop({ required: true, default: () => UUIDv4() })
+    @Prop({ required: true, unique: true, default: () => UUIDv4() })
     id: string;
 
     @Prop({ required: true, unique: true })

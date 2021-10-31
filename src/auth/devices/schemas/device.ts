@@ -2,7 +2,7 @@ import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
 
 @ModelOptions({ options: { customName: 'devices' } })
-@Index({ holderUserId: 'text', type: 'text', deviceSign: 'text' })
+@Index({ holderUserId: 1, id: 1 }, { unique: true })
 export class DeviceSchema {
     @Prop({ required: true, default: () => UUIDv4() })
     id: string;
