@@ -8,7 +8,6 @@ import { VCSService } from '@/utils/vcs/service';
 import { Commit } from '@/utils/vcs/entities/commit';
 import { PullResponseEntity } from '@/sync/entities/pullResponse';
 import { PullRequestEntity } from '@/sync/entities/pullReqest';
-import { PushResponseEntity } from '@/sync/entities/pushResponse';
 import { PushRequestEntity } from '@/sync/entities/pushRequest';
 import { CheckUpdateRequestEntity } from '@/sync/entities/checkUpdateRequest';
 import { CheckUpdateResponseEntity } from '@/sync/entities/checkUpdateResponse';
@@ -25,10 +24,17 @@ export class SyncService {
     ) {}
 
     async checkUpdate(checkUpdateRequest: CheckUpdateRequestEntity, user: User): Promise<CheckUpdateResponseEntity> {
-        return await this.vcsService.checkUpdate(checkUpdateRequest.fromCommit, user);
+        const { existUpdate, headCommit } = await this.vcsService.checkUpdate(checkUpdateRequest.fromCommit, user);
+
+        return {
+            existUpdate,
+            fromCommit: checkUpdateRequest.fromCommit || null,
+            toCommit: headCommit,
+            headCommit,
+        };
     }
 
-    async pushState(pushRequest: PushRequestEntity, user: User, device: Device): Promise<PushResponseEntity> {
+    async pushState(pushRequest: PushRequestEntity, user: User, device: Device): Promise<CheckUpdateResponseEntity> {
         this.logger.log(`Push state {user.id:${user.id} device.id:${device.id}}...`);
 
         const { commit: serverHeadCommit } = await this.vcsService.getHead(user);

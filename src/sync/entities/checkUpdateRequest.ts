@@ -5,5 +5,5 @@ export class CheckUpdateRequestEntity {
     @Expose()
     @IsOptional()
     @IsString()
-    readonly fromCommit?: string;
+    readonly fromCommit?: string = null;
 }

@@ -9,7 +9,6 @@ import { PullRequestEntity } from '@/sync/entities/pullReqest';
 import { PushRequestEntity } from '@/sync/entities/pushRequest';
 import { PullResponseEntity } from '@/sync/entities/pullResponse';
 import { Response } from 'express';
-import { PushResponseEntity } from '@/sync/entities/pushResponse';
 import { CheckUpdateRequestEntity } from '@/sync/entities/checkUpdateRequest';
 import { CheckUpdateResponseEntity } from '@/sync/entities/checkUpdateResponse';
 import { Res } from '@/utils/response.param.decorator';
@@ -41,7 +40,7 @@ export class SyncController {
         @Body() pushInfo: PushRequestEntity,
         @CurUser() user: User,
         @CurDevice() device: Device,
-    ): Promise<PushResponseEntity> {
+    ): Promise<CheckUpdateResponseEntity> {
         return await this.syncService.pushState(pushInfo, user, device);
     }
 
