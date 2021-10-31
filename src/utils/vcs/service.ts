@@ -8,11 +8,11 @@ import { Commit } from './entities/commit';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { plainToClass } from 'class-transformer';
 
-function decodeCommit(commit: string): Commit {
+export function decodeCommit(commit: string): Commit {
     return plainToClass(Commit, JSON.parse(base64url.decode(commit)));
 }
 
-function encodeCommit(rawCommit: Commit): string {
+export function encodeCommit(rawCommit: Commit): string {
     return base64url(JSON.stringify(rawCommit));
 }
 
