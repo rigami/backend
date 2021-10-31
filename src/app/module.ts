@@ -12,11 +12,11 @@ import { SyncModule } from '@/sync/module';
     imports: [
         TypegooseModule.forRootAsync({
             connectionName: 'cache',
-            useFactory: async () => ({ uri: 'mongodb://localhost/rigami-cache' }),
+            useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-cache' }),
         }),
         TypegooseModule.forRootAsync({
             connectionName: 'main',
-            useFactory: async () => ({ uri: 'mongodb://localhost/rigami-main' }),
+            useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-main' }),
         }),
         AuthModule,
         UsersModule,
