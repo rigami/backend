@@ -32,7 +32,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
         return {
             user: {
                 id: user.id,
-                email: user.email,
+                username: user.username,
                 isVirtual: user.isVirtual,
             },
             device: {

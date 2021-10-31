@@ -32,7 +32,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
         return {
             user: {
                 id: user.id,
-                email: user.email,
+                username: user.username,
                 isVirtual: user.isVirtual,
             },
             device: {

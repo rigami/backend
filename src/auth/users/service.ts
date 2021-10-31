@@ -21,23 +21,23 @@ export class UsersService {
 
         return {
             id: user.id,
-            email: user.email,
+            username: user.username,
             password: user.password,
             isVirtual: user.isVirtual,
             createDate: user.createDate,
         };
     }
 
-    async findOne(email: string): Promise<User | null> {
+    async findOne(username: string): Promise<User | null> {
         const user = await this.userModel.findOne({
-            email,
+            username,
         });
 
         if (!user) return null;
 
         return {
             id: user.id,
-            email: user.email,
+            username: user.username,
             password: user.password,
             isVirtual: user.isVirtual,
             createDate: user.createDate,
@@ -51,7 +51,7 @@ export class UsersService {
 
         return {
             id: user.id,
-            email: user.email,
+            username: user.username,
             password: user.password,
             isVirtual: user.isVirtual,
             createDate: user.createDate,
@@ -62,33 +62,33 @@ export class UsersService {
         this.logger.log(`Creating virtual user...`);
 
         const user = await this.userModel.create({
-            email: UUIDv4(),
+            username: UUIDv4(),
             password: '',
             isVirtual: true,
         });
 
         return {
             id: user.id,
-            email: user.email,
+            username: user.username,
             password: user.password,
             isVirtual: true,
             createDate: user.createDate,
         };
     }
 
-    async createUser(email: string, password: string): Promise<User | null> {
-        this.logger.log(`Creating user '${email}'...`);
+    async createUser(username: string, password: string): Promise<User | null> {
+        this.logger.log(`Creating user '${username}'...`);
 
         try {
             const user = await this.userModel.create({
-                email,
+                username,
                 password,
                 isVirtual: false,
             });
 
             return {
                 id: user.id,
-                email: user.email,
+                username: user.username,
                 password: user.password,
                 isVirtual: false,
                 createDate: user.createDate,

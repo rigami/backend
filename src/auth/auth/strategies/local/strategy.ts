@@ -7,11 +7,11 @@ import { Credentials } from '@/auth/auth/entities/credentials';
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
     constructor(private authService: AuthService) {
-        super({ usernameField: 'email' });
+        super();
     }
 
-    async validate(email: string, password: string): Promise<Credentials> {
-        const user = await this.authService.validateUser(email, password);
+    async validate(username: string, password: string): Promise<Credentials> {
+        const user = await this.authService.validateUser(username, password);
 
         if (!user) {
             throw new UnauthorizedException();
@@ -20,7 +20,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
         return {
             user: {
                 id: user.id,
-                email: user.email,
+                username: user.username,
                 isVirtual: user.isVirtual,
             },
         };

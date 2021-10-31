@@ -1,14 +1,13 @@
-import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
+import { Prop, ModelOptions } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
 
 @ModelOptions({ options: { customName: 'users' } })
-@Index({ email: 'text' })
 export class UserSchema {
     @Prop({ required: true, default: () => UUIDv4() })
     id: string;
 
     @Prop({ required: true, unique: true })
-    email!: string;
+    username!: string;
 
     @Prop()
     password: string;

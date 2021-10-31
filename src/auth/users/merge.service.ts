@@ -96,7 +96,7 @@ export class MergeUsersService {
         this.sseService.addEvent('merge-request', mergedUser.id, {
             type: 'done-merge',
             data: {
-                newUsername: fullMasterUser.email,
+                newUsername: fullMasterUser.username,
                 newPassword: fullMasterUser.password,
             },
         });

@@ -17,8 +17,8 @@ export class AuthService {
         private jwtService: JwtService,
     ) {}
 
-    async validateUser(email: string, password: string): Promise<User> {
-        const user = await this.usersService.findOne(email);
+    async validateUser(username: string, password: string): Promise<User> {
+        const user = await this.usersService.findOne(username);
 
         if (user && user.isVirtual) {
             const { password, ...result } = user;
@@ -34,7 +34,7 @@ export class AuthService {
 
     async registration(registrationInfo: RegistrationInfo) {
         try {
-            const user = await this.usersService.createUser(registrationInfo.email, registrationInfo.password);
+            const user = await this.usersService.createUser(registrationInfo.username, registrationInfo.password);
 
             const loginInfo = await this.login({
                 user,
@@ -42,7 +42,7 @@ export class AuthService {
             });
 
             return {
-                username: user.email,
+                username: user.username,
                 deviceToken: registrationInfo.deviceToken,
                 ...loginInfo,
             };
@@ -61,7 +61,7 @@ export class AuthService {
             });
 
             return {
-                username: user.email,
+                username: user.username,
                 deviceToken: deviceRegistrationInfo.deviceToken,
                 ...loginInfo,
             };
@@ -100,7 +100,7 @@ export class AuthService {
         const payload = {
             tokenType: 'accessToken',
             sub: user.id,
-            username: user.email,
+            username: user.username,
             deviceSub: device.id,
         };
 
@@ -142,7 +142,7 @@ export class AuthService {
         const payload = {
             tokenType: 'refreshToken',
             sub: loginInfo.user.id,
-            username: loginInfo.user.email,
+            username: loginInfo.user.username,
             deviceSub: device.id,
         };
         return {
