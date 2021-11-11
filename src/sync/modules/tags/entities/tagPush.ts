@@ -1,18 +1,24 @@
 import { IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Bookmark } from './bookmark';
+import { Tag } from './tag';
 import { DeleteEntity } from '@/sync/entities/delete';
+import { PairEntity } from '@/sync/entities/pair';
 
-export class BookmarksState {
+export class TagsPush {
     @IsOptional()
     @ValidateNested({ each: true })
-    @Type(() => Bookmark)
-    readonly create?: Bookmark[] = [];
+    @Type(() => PairEntity)
+    readonly pair?: PairEntity[] = [];
 
     @IsOptional()
     @ValidateNested({ each: true })
-    @Type(() => Bookmark)
-    readonly update?: Bookmark[] = [];
+    @Type(() => Tag)
+    readonly create?: Tag[] = [];
+
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => Tag)
+    readonly update?: Tag[] = [];
 
     @IsOptional()
     @ValidateNested({ each: true })

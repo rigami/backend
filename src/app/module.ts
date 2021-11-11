@@ -18,6 +18,10 @@ import { SyncModule } from '@/sync/module';
             connectionName: 'main',
             useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-main' }),
         }),
+        TypegooseModule.forRootAsync({
+            connectionName: 'sync',
+            useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-sync' }),
+        }),
         AuthModule,
         UsersModule,
         DevicesModule,

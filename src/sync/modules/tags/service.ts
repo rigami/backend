@@ -7,9 +7,9 @@ import { User } from '@/auth/users/entities/user';
 import { DeleteEntity } from '@/sync/entities/delete';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { Commit } from '@/utils/vcs/entities/commit';
-import { STATE_ACTION } from '@/sync/entities/synced';
+import { STATE_ACTION } from '@/sync/entities/snapshot';
 import { Tag } from './entities/tag';
-import { TagsState } from './entities/state';
+// import { TagsState } from './entities/tagPush';
 import { plainToClass } from 'class-transformer';
 
 @Injectable()
@@ -57,7 +57,7 @@ export class TagsSyncService {
     }
 
     async deleteTags(tags: DeleteEntity[], user: User, stage: Stage) {
-        await Promise.all(
+        /* await Promise.all(
             tags.map((folder) =>
                 this.tagModel.update({ id: folder.id, userId: user.id }, [
                     {
@@ -76,10 +76,10 @@ export class TagsSyncService {
                     },
                 ]),
             ),
-        );
+        ); */
     }
 
-    async pushState(stage: Stage, state: TagsState, user: User, device: Device): Promise<any> {
+    /* async pushState(stage: Stage, localCommit: Commit, state: TagsState, user: User, device: Device): Promise<any> {
         this.logger.log(
             `Push tags state for user.id:${user.id} device.id:${device.id}
             Summary:
@@ -146,5 +146,5 @@ export class TagsSyncService {
             update: updateTags.map((folder) => plainToClass(Tag, folder, { excludeExtraneousValues: true })),
             delete: deletedTags.map((folder) => plainToClass(DeleteEntity, folder, { excludeExtraneousValues: true })),
         };
-    }
+    } */
 }

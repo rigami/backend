@@ -1,44 +1,257 @@
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
-import { SyncModule } from '@/utils/sync/module';
-import { INestApplication } from '@nestjs/common';
+import { SyncModule } from '@/sync/module';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { AuthModule } from '@/auth/auth/module';
 import { UsersModule } from '@/auth/users/module';
 import { v4 as UUIDv4 } from 'uuid';
+import { DevicesModule } from '@/auth/devices/module';
+import { decodeCommit } from '@/utils/vcs/service';
+
+const authRequest = (app, user, method, path) =>
+    request(app.getHttpServer())
+        [method](path)
+        .set('Device-Type', 'extension-chrome')
+        .set('Device-Token', user.deviceToken)
+        .set('User-Agent', 'e2e-test')
+        .set('Accept', 'application/json')
+        .auth(user.accessToken, { type: 'bearer' });
 
 describe('Sync (e2e)', () => {
     let app: INestApplication;
-    let device1;
-    let device2;
+    let user1;
+    let user2;
+    let testStartTime;
 
     beforeAll(async () => {
         const moduleRef = await Test.createTestingModule({
-            imports: [TypegooseModule.forRoot('mongodb://localhost/rigami-cache'), AuthModule, UsersModule, SyncModule],
+            imports: [
+                TypegooseModule.forRootAsync({
+                    connectionName: 'cache',
+                    useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-cache' }),
+                }),
+                TypegooseModule.forRootAsync({
+                    connectionName: 'main',
+                    useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-main' }),
+                }),
+                TypegooseModule.forRootAsync({
+                    connectionName: 'sync',
+                    useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-sync' }),
+                }),
+                AuthModule,
+                UsersModule,
+                DevicesModule,
+                SyncModule,
+            ],
         }).compile();
 
         app = moduleRef.createNestApplication();
+
+        app.useGlobalPipes(
+            new ValidationPipe({
+                whitelist: true,
+                forbidNonWhitelisted: true,
+                // TODO: Use in production disableErrorMessages: true,
+            }),
+        );
+
         await app.init();
 
-        device1 = await request(app.getHttpServer())
-            .post('/auth/sign-device')
-            .send({ uuid: UUIDv4(), browser: 'Chrome' })
+        user1 = await request(app.getHttpServer())
+            .post('/v1/auth/virtual/registration')
+            .set('Device-Type', 'extension-chrome')
+            .set('Device-Token', UUIDv4())
+            .set('User-Agent', 'e2e-test')
             .set('Accept', 'application/json')
-            .then((response) => response.body.signDeviceToken);
+            .then((response) => response.body);
 
-        device2 = await request(app.getHttpServer())
-            .post('/auth/sign-device')
-            .send({ uuid: UUIDv4(), browser: 'Chrome' })
+        user2 = await request(app.getHttpServer())
+            .post('/v1/auth/virtual/registration')
+            .set('Device-Type', 'extension-chrome')
+            .set('Device-Token', UUIDv4())
+            .set('User-Agent', 'e2e-test')
             .set('Accept', 'application/json')
-            .then((response) => response.body.signDeviceToken);
+            .then((response) => response.body);
+
+        // console.log('user1:', user1);
+        // console.log('user2:', user2);
+
+        testStartTime = new Date().valueOf();
     });
 
-    it(`Push local state`, () => {
-        return request(app.getHttpServer())
-            .post('/sync/push')
-            .send({ a: 'a', b: 'b' })
-            .auth(device1, { type: 'bearer' })
-            .expect(200);
+    it(`Sync changes by one user`, async () => {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+
+        const pushResponse1 = await authRequest(app, user1, 'put', '/v1/sync/push')
+            .send({
+                create: [
+                    {
+                        tempId: '00000000-0000-0000-0000-000000000001',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime).toISOString(),
+                        updateDate: new Date(testStartTime).toISOString(),
+                        payload: {
+                            parentId: '00000000-0000-0000-0000-000000000000',
+                            name: 'Sundry',
+                        },
+                    },
+                    {
+                        tempId: '0d39607c-8892-4f45-b0f6-58bd81a13314',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime + 100).toISOString(),
+                        updateDate: new Date(testStartTime + 100).toISOString(),
+                        payload: {
+                            parentId: '00000000-0000-0000-0000-000000000000',
+                            name: 'Folder 1',
+                        },
+                    },
+                    {
+                        tempId: '0d39607c-8892-4f45-b0f6-58bd81a13316',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime + 200).toISOString(),
+                        updateDate: new Date(testStartTime + 200).toISOString(),
+                        payload: {
+                            parentTempId: '0d39607c-8892-4f45-b0f6-58bd81a13314',
+                            name: 'Folder 2',
+                        },
+                    },
+                ],
+                update: [],
+                delete: [],
+            })
+            .expect((res) => (res.status != 200 ? console.error(res.body) : 0));
+
+        console.log('pushResponse1:', pushResponse1.body);
+
+        const pushResponse2 = await authRequest(app, user1, 'put', '/v1/sync/push')
+            .send({
+                create: [
+                    {
+                        tempId: '00000000-0000-0000-0000-000000000001',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime + 150).toISOString(),
+                        updateDate: new Date(testStartTime + 150).toISOString(),
+                        payload: {
+                            parentId: '00000000-0000-0000-0000-000000000000',
+                            name: 'Sundry',
+                        },
+                    },
+                    {
+                        tempId: '0d39607c-8892-4f45-b0f6-58bd81a13315',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime + 200).toISOString(),
+                        updateDate: new Date(testStartTime + 200).toISOString(),
+                        payload: {
+                            parentId: '00000000-0000-0000-0000-000000000000',
+                            name: 'Folder 3',
+                        },
+                    },
+                    {
+                        tempId: '0d39607c-8892-4f45-b0f6-58bd81a13318',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime + 80).toISOString(),
+                        updateDate: new Date(testStartTime + 80).toISOString(),
+                        payload: {
+                            parentId: '00000000-0000-0000-0000-000000000000',
+                            name: 'Folder 1',
+                        },
+                    },
+                    {
+                        tempId: '0d39607c-8892-4f45-b0f6-58bd81a13328',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime + 300).toISOString(),
+                        updateDate: new Date(testStartTime + 300).toISOString(),
+                        payload: {
+                            parentTempId: '0d39607c-8892-4f45-b0f6-58bd81a13318',
+                            name: 'Folder 2',
+                        },
+                    },
+                ],
+                update: [],
+                delete: [],
+            })
+            .expect((res) => (res.status != 200 ? console.error(res.body) : 0));
+
+        console.log('pushResponse2:', pushResponse2.body);
+
+        /* const checkUpdate = await authRequest(
+            app,
+            user1,
+            'get',
+            `/v1/sync/check-update?fromCommit=${pushResponse1.body.headCommit}`,
+        ).expect((res) => (res.status != 200 ? console.error(res.body) : 0));
+
+        console.log('checkUpdate:', checkUpdate.body); */
+
+        const checkUpdateAll = await authRequest(app, user1, 'get', `/v1/sync/check-update`).expect((res) =>
+            res.status != 200 ? console.error(res.body) : 0,
+        );
+
+        // console.log('checkUpdateAll:', checkUpdateAll.body);
+
+        let pullAllData = await authRequest(
+            app,
+            user1,
+            'get',
+            `/v1/sync/pull?toCommit=${checkUpdateAll.body.headCommit}`,
+        ).expect((res) => (res.status != 200 ? console.error(res.body) : 0));
+
+        console.log('allData headCommit:', pullAllData.body.headCommit);
+        console.log('allData create:', pullAllData.body.create);
+        console.log('allData update:', pullAllData.body.update);
+
+        testStartTime = Date.now();
+
+        const sundryFolder = pullAllData.body.create.find((fodler) => fodler.payload.name === 'Sundry');
+        const folder1 = pullAllData.body.create.find((fodler) => fodler.payload.name === 'Folder 1');
+        const folder2 = pullAllData.body.create.find((fodler) => fodler.payload.name === 'Folder 2');
+
+        await new Promise((resolve) => setTimeout(resolve, 600));
+
+        const pushResponse3 = await authRequest(app, user1, 'put', '/v1/sync/push')
+            .send({
+                localCommit: pullAllData.body.headCommit,
+                create: [],
+                update: [
+                    {
+                        id: sundryFolder.id,
+                        entityType: 'folder',
+                        createDate: sundryFolder.createDate,
+                        updateDate: new Date(testStartTime + 100).toISOString(),
+                        payload: {
+                            parentId: '00000000-0000-0000-0000-000000000000',
+                            name: 'Sundry upd',
+                        },
+                    },
+                ],
+                delete: [
+                    {
+                        id: folder1.id,
+                        entityType: 'folder',
+                        deleteDate: new Date(testStartTime + 110).toISOString(),
+                    },
+                    {
+                        id: folder2.id,
+                        entityType: 'folder',
+                        deleteDate: new Date(testStartTime + 110).toISOString(),
+                    },
+                ],
+            })
+            .expect((res) => (res.status != 200 ? console.error(res.body) : 0));
+
+        console.log('pushResponse3:', pushResponse3.body);
+
+        pullAllData = await authRequest(
+            app,
+            user1,
+            'get',
+            `/v1/sync/pull?toCommit=${pushResponse3.body.headCommit}`,
+        ).expect((res) => (res.status != 200 ? console.error(res.body) : 0));
+
+        console.log('allData headCommit:', pullAllData.body.headCommit);
+        console.log('allData create:', pullAllData.body.create);
+        console.log('allData update:', pullAllData.body.update);
     });
 
     afterAll(async () => {

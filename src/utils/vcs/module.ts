@@ -8,7 +8,7 @@ export class VCSModule {
     static register(moduleName: string): DynamicModule {
         return {
             module: VCSModule,
-            imports: [TypegooseModule.forFeature([CommitSchema], 'main')],
+            imports: [TypegooseModule.forFeature([CommitSchema], 'sync')],
             providers: [
                 {
                     provide: 'VCS_CONFIG_OPTIONS',

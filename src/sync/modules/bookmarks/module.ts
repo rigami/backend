@@ -4,7 +4,7 @@ import { TypegooseModule } from 'nestjs-typegoose';
 import { BookmarkSchema } from './schemas/bookmark';
 
 @Module({
-    imports: [TypegooseModule.forFeature([BookmarkSchema], 'main')],
+    imports: [TypegooseModule.forFeature([BookmarkSchema], 'sync')],
     providers: [BookmarksSyncService],
     exports: [BookmarksSyncService],
 })

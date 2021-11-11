@@ -1,18 +1,24 @@
 import { IsOptional, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Folder } from './folder';
+import { BookmarkPush } from './bookmarkPush';
 import { DeleteEntity } from '@/sync/entities/delete';
+import { PairEntity } from '@/sync/entities/pair';
 
-export class FoldersState {
+export class BookmarksPush {
     @IsOptional()
     @ValidateNested({ each: true })
-    @Type(() => Folder)
-    readonly create?: Folder[] = [];
+    @Type(() => PairEntity)
+    readonly pair?: PairEntity[] = [];
 
     @IsOptional()
     @ValidateNested({ each: true })
-    @Type(() => Folder)
-    readonly update?: Folder[] = [];
+    @Type(() => BookmarkPush)
+    readonly create?: BookmarkPush[] = [];
+
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => BookmarkPush)
+    readonly update?: BookmarkPush[] = [];
 
     @IsOptional()
     @ValidateNested({ each: true })

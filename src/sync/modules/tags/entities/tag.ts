@@ -1,5 +1,5 @@
 import { IsNumber, IsString, IsUUID } from 'class-validator';
-import { SyncedEntity } from '@/sync/entities/synced';
+import { SyncedEntity } from '@/sync/entities/snapshot';
 import { Expose } from 'class-transformer';
 
 export class Tag extends SyncedEntity {

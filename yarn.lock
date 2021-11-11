@@ -5147,7 +5147,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jest@npm:^27.3.1":
+"jest@npm:^27.0.6":
   version: 27.3.1
   resolution: "jest@npm:27.3.1"
   dependencies:
@@ -6120,7 +6120,7 @@ __metadata:
     eslint-plugin-prettier: ^4.0.0
     fs-extra: ^10.0.0
     ico-to-png: ^0.2.1
-    jest: ^27.3.1
+    jest: ^27.0.6
     jsdom: ^18.0.0
     lodash: ^4.17.21
     mongoose: ^6.0.12
@@ -6135,7 +6135,7 @@ __metadata:
     rxjs: ^7.4.0
     sharp: ^0.29.2
     supertest: ^6.1.6
-    ts-jest: ^27.0.7
+    ts-jest: ^27.0.3
     ts-loader: ^9.2.6
     ts-node: ^10.4.0
     tsconfig-paths: ^3.11.0
@@ -7858,7 +7858,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"ts-jest@npm:^27.0.7":
+"ts-jest@npm:^27.0.3":
   version: 27.0.7
   resolution: "ts-jest@npm:27.0.7"
   dependencies:

@@ -8,13 +8,5 @@ export class CheckUpdateResponseEntity {
 
     @Expose()
     @IsString()
-    readonly fromCommit: string;
-
-    @Expose()
-    @IsString()
-    readonly toCommit: string;
-
-    @Expose()
-    @IsString()
     readonly headCommit: string;
 }

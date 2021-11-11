@@ -4,13 +4,14 @@ import { FolderSchema } from './schemas/folder';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { DeleteEntity } from '@/sync/entities/delete';
+import { DeleteEntity, DeletePairEntity } from '@/sync/entities/delete';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { Commit } from '@/utils/vcs/entities/commit';
-import { STATE_ACTION } from '@/sync/entities/synced';
-import { Folder } from '@/sync/modules/folders/entities/folder';
-import { FoldersState } from '@/sync/modules/folders/entities/state';
+import { STATE_ACTION } from '@/sync/entities/snapshot';
+import { Folder, FolderSnapshot } from '@/sync/modules/folders/entities/folder';
 import { plainToClass } from 'class-transformer';
+import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
+import { merge, omitBy } from 'lodash';
 
 @Injectable()
 export class FoldersSyncService {
@@ -19,103 +20,121 @@ export class FoldersSyncService {
     constructor(
         @InjectModel(FolderSchema)
         private readonly folderModel: ReturnModelType<typeof FolderSchema>,
+        @InjectModel(HistorySchema)
+        private readonly historyModel: ReturnModelType<typeof HistorySchema>,
     ) {}
 
-    async saveNewFolders(folders: Folder[], user: User, stage: Stage) {
-        await this.folderModel.create(
-            folders.map((folder) => ({
-                ...folder,
-                lastAction: STATE_ACTION.create,
-                userId: user.id,
-                createCommit: stage.commit,
-                updateCommit: stage.commit,
-            })),
-        );
-    }
+    async merge(folders, processFolder) {
+        let syncedFoldersQueue = [...folders];
+        let pairFoldersIds = {};
 
-    async updateFolders(folders: Folder[], user: User, stage: Stage) {
-        await Promise.all(
-            folders.map((folder) =>
-                this.folderModel.update({ id: folder.id, userId: user.id }, [
-                    {
-                        $set: {
-                            ...folder,
-                            userId: user.id,
-                            updateCommit: stage.commit,
-                            lastAction: {
-                                $cond: {
-                                    if: { $gt: [folder.updateDate, '$updateDate'] },
-                                    then: STATE_ACTION.update,
-                                    else: '$lastAction',
-                                },
-                            },
-                        },
+        while (syncedFoldersQueue.length !== 0) {
+            const pairFoldersLevelIds = {};
+
+            const rootFolders = syncedFoldersQueue.filter((entity) => {
+                if (entity.payload.parentId || entity.payload.parentTempId in pairFoldersIds) {
+                    pairFoldersLevelIds[entity.tempId || entity.id] = null;
+
+                    return true;
+                }
+
+                return false;
+            });
+
+            syncedFoldersQueue = syncedFoldersQueue.filter(
+                (entity) => !((entity.tempId || entity.id) in pairFoldersLevelIds),
+            );
+            pairFoldersIds = merge(pairFoldersIds, pairFoldersLevelIds);
+
+            for (const entity of rootFolders) {
+                const pair = await processFolder({
+                    ...entity,
+                    payload: {
+                        ...entity.payload,
+                        parentId: entity.payload.parentId || pairFoldersIds[entity.payload.parentTempId],
                     },
-                ]),
-            ),
-        );
-    }
+                });
 
-    async deleteFolders(folders: DeleteEntity[], user: User, stage: Stage) {
-        await Promise.all(
-            folders.map((folder) =>
-                this.folderModel.update({ id: folder.id, userId: user.id }, [
-                    {
-                        $set: {
-                            ...folder,
-                            userId: user.id,
-                            updateCommit: stage.commit,
-                            lastAction: {
-                                $cond: {
-                                    if: { $gt: [folder.updateDate, '$updateDate'] },
-                                    then: STATE_ACTION.delete,
-                                    else: '$lastAction',
-                                },
-                            },
-                        },
-                    },
-                ]),
-            ),
-        );
-    }
-
-    async pushState(stage: Stage, state: FoldersState, user: User, device: Device): Promise<any> {
-        this.logger.log(
-            `Push folders state for user.id:${user.id} device.id:${device.id}
-            Summary:
-            Create: ${state.create.length}
-            Update: ${state.update.length}
-            Delete: ${state.delete.length}`,
-        );
-
-        if (state.create.length !== 0) {
-            await this.saveNewFolders(state.create, user, stage);
+                pairFoldersIds[pair.localId] = pair.cloudId;
+            }
         }
 
-        if (state.update.length !== 0) {
-            await this.updateFolders(state.update, user, stage);
-        }
-
-        if (state.delete.length !== 0) {
-            await this.deleteFolders(state.delete, user, stage);
-        }
+        return pairFoldersIds;
     }
 
-    async pullState(fromCommit: Commit, toCommit: Commit, user: User, device: Device): Promise<FoldersState> {
-        this.logger.log(`Pull folders state for user.id:${user.id} device.id:${device.id}`);
+    async exist(searchFolder: Folder, user: User): Promise<FolderSnapshot> {
+        let folder;
 
-        let query;
-
-        if (fromCommit) {
-            query = {
+        if (searchFolder.id) {
+            folder = await this.folderModel.findOne({
+                id: searchFolder.id,
                 userId: user.id,
-                updateCommit: { $gt: fromCommit.head },
-            };
-        } else {
-            query = {
-                userId: user.id,
-            };
+            });
         }
+
+        if (!folder) {
+            folder = await this.folderModel.findOne({
+                parentId: searchFolder.parentId,
+                name: searchFolder.name,
+                userId: user.id,
+            });
+        }
+
+        return folder && plainToClass(FolderSnapshot, folder, { excludeExtraneousValues: true });
+    }
+
+    async create(folder: FolderSnapshot, user: User, stage: Stage) {
+        return await this.folderModel.create({
+            ...folder,
+            lastAction: STATE_ACTION.create,
+            userId: user.id,
+            createCommit: stage.commit,
+            updateCommit: stage.commit,
+        });
+    }
+
+    async update(folder: FolderSnapshot, user: User, stage: Stage) {
+        await this.folderModel.updateOne(
+            {
+                id: folder.id,
+                userId: user.id,
+            },
+            {
+                $set: {
+                    ...folder,
+                    lastAction: STATE_ACTION.update,
+                    userId: user.id,
+                    createCommit: stage.commit,
+                    updateCommit: stage.commit,
+                },
+            },
+        );
+
+        return this.folderModel.findOne({ id: folder.id, userId: user.id });
+    }
+
+    async delete(deleteEntity: DeletePairEntity, user: User, stage: Stage) {
+        await this.folderModel.deleteOne({
+            id: deleteEntity.id,
+            userId: user.id,
+        });
+        await this.historyModel.create({
+            userId: user.id,
+            action: HISTORY_ACTION.delete,
+            entityType: 'folder',
+            entityId: deleteEntity.id,
+            date: deleteEntity.deleteDate,
+            commit: stage.commit,
+        });
+    }
+
+    async get(fromCommit: Commit, toCommit: Commit, user: User, device: Device) {
+        const query = {
+            userId: user.id,
+            updateCommit: omitBy({ $gt: fromCommit?.head, $lte: toCommit?.head }, (date) => !date),
+        };
+
+        console.log('query:', query);
 
         const createFolders = await this.folderModel
             .find({
@@ -141,9 +160,27 @@ export class FoldersSyncService {
             .lean()
             .exec();
 
+        if (!fromCommit) {
+            return {
+                create: [...createFolders, ...updateFolders].map((folder) =>
+                    plainToClass(
+                        FolderSnapshot,
+                        { ...folder, lastAction: STATE_ACTION.create },
+                        { excludeExtraneousValues: true },
+                    ),
+                ),
+                update: [],
+                delete: [],
+            };
+        }
+
         return {
-            create: createFolders.map((folder) => plainToClass(Folder, folder, { excludeExtraneousValues: true })),
-            update: updateFolders.map((folder) => plainToClass(Folder, folder, { excludeExtraneousValues: true })),
+            create: createFolders.map((folder) =>
+                plainToClass(FolderSnapshot, folder, { excludeExtraneousValues: true }),
+            ),
+            update: updateFolders.map((folder) =>
+                plainToClass(FolderSnapshot, folder, { excludeExtraneousValues: true }),
+            ),
             delete: deletedFolders.map((folder) =>
                 plainToClass(DeleteEntity, folder, { excludeExtraneousValues: true }),
             ),

@@ -2,7 +2,7 @@ import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 import { IsDate } from 'class-validator';
 import { Type } from 'class-transformer';
 
-@ModelOptions({ options: { customName: 'state' } })
+@ModelOptions({ options: { customName: 'snapshots' } })
 @Index({ userId: 1, model: 1 }, { unique: true })
 export class CommitSchema {
     @Prop({ required: true })

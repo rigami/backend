@@ -1,5 +1,6 @@
-import { IsEnum, IsDate, IsUUID, IsOptional } from 'class-validator';
+import { IsDate, IsUUID, IsOptional } from 'class-validator';
 import { Expose, Type } from 'class-transformer';
+import { DefaultEntity } from '@/utils/defaultEntity';
 
 export enum STATE_ACTION {
     'create' = 'create',
@@ -7,15 +8,11 @@ export enum STATE_ACTION {
     'delete' = 'delete',
 }
 
-export class SyncedEntity {
+export class SnapshotEntity extends DefaultEntity {
     @Expose()
     @IsUUID()
     @IsOptional()
     readonly userId?: string;
-
-    @Expose()
-    @IsEnum(STATE_ACTION)
-    readonly lastAction: string;
 
     @Expose()
     @IsDate()
