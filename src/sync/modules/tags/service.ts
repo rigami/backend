@@ -34,7 +34,7 @@ export class TagsSyncService {
     }
 
     async updateTags(tags: Tag[], user: User, stage: Stage) {
-        await Promise.all(
+        /* await Promise.all(
             tags.map((folder) =>
                 this.tagModel.update({ id: folder.id, userId: user.id }, [
                     {
@@ -53,7 +53,7 @@ export class TagsSyncService {
                     },
                 ]),
             ),
-        );
+        ); */
     }
 
     async deleteTags(tags: DeleteEntity[], user: User, stage: Stage) {

@@ -44,6 +44,22 @@ export class SyncService {
         this.logger.log(`Push state {user.id:${user.id} device.id:${device.id}}...`);
 
         await this.devicesService.updateLastActivity(device);
+
+        if (pushRequest.create.length === 0 && pushRequest.update.length === 0 && pushRequest.delete.length === 0) {
+            this.logger.log(`Nothing for push {user.id:${user.id} device.id:${device.id}}. Skip...`);
+
+            return {
+                existUpdate: false,
+                fromCommit: null,
+                toCommit: null,
+                headCommit: pushRequest.localCommit,
+                create: [],
+                pair: [],
+                update: [],
+                delete: [],
+            };
+        }
+
         const now = Date.now().valueOf();
         const { commit: serverHeadCommit } = await this.vcsService.getHead(user);
 

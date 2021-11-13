@@ -7,7 +7,6 @@ import { AuthModule } from '@/auth/auth/module';
 import { UsersModule } from '@/auth/users/module';
 import { v4 as UUIDv4 } from 'uuid';
 import { DevicesModule } from '@/auth/devices/module';
-import { decodeCommit } from '@/utils/vcs/service';
 
 const authRequest = (app, user, method, path) =>
     request(app.getHttpServer())
@@ -116,6 +115,16 @@ describe('Sync (e2e)', () => {
                             name: 'Folder 2',
                         },
                     },
+                    {
+                        tempId: '0d39607c-8892-4f45-b0f6-58bd81a13326',
+                        entityType: 'folder',
+                        createDate: new Date(testStartTime + 210).toISOString(),
+                        updateDate: new Date(testStartTime + 210).toISOString(),
+                        payload: {
+                            parentTempId: '00000000-0000-0000-0000-000000000000',
+                            name: 'Folder 3',
+                        },
+                    },
                 ],
                 update: [],
                 delete: [],
@@ -175,20 +184,31 @@ describe('Sync (e2e)', () => {
 
         console.log('pushResponse2:', pushResponse2.body);
 
-        /* const checkUpdate = await authRequest(
+        const pullAllData1 = await authRequest(
+            app,
+            user1,
+            'get',
+            `/v1/sync/pull?fromCommit=${pushResponse2.body.headCommit}`,
+        ).expect((res) => (res.status != 200 ? console.error(res.body) : 0));
+
+        console.log('allData headCommit:', pullAllData1.body.headCommit);
+        console.log('allData create:', pullAllData1.body.create);
+        console.log('allData update:', pullAllData1.body.update);
+
+        const checkUpdate = await authRequest(
             app,
             user1,
             'get',
             `/v1/sync/check-update?fromCommit=${pushResponse1.body.headCommit}`,
         ).expect((res) => (res.status != 200 ? console.error(res.body) : 0));
 
-        console.log('checkUpdate:', checkUpdate.body); */
+        console.log('checkUpdate:', checkUpdate.body);
 
         const checkUpdateAll = await authRequest(app, user1, 'get', `/v1/sync/check-update`).expect((res) =>
             res.status != 200 ? console.error(res.body) : 0,
         );
 
-        // console.log('checkUpdateAll:', checkUpdateAll.body);
+        console.log('checkUpdateAll:', checkUpdateAll.body);
 
         let pullAllData = await authRequest(
             app,

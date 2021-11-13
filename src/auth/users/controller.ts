@@ -8,10 +8,7 @@ import { MessageEvent } from '@/utils/sse/entities/messageEvent';
 
 @Controller('v1/users')
 export class UsersController {
-    constructor(
-        private usersService: UsersService,
-        private mergeService: MergeUsersService,
-    ) {}
+    constructor(private usersService: UsersService, private mergeService: MergeUsersService) {}
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('merge/apply-request')
