@@ -7,9 +7,11 @@ import { SyncService } from '@/sync/service';
 // import { TagsSyncModule } from '@/sync/modules/tags/module';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { HistorySchema } from '@/sync/schemas/history';
+import { DevicesModule } from '@/auth/devices/module';
 
 @Module({
     imports: [
+        DevicesModule,
         VCSModule.register('sync'),
         TypegooseModule.forFeature([HistorySchema], 'sync'),
         // BookmarksSyncModule,

@@ -5,6 +5,8 @@ import { DeviceSchema } from './schemas/device';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
 import { User } from '@/auth/users/entities/user';
+import { plainToClass } from 'class-transformer';
+import { FolderSnapshot } from '@/sync/modules/folders/entities/folder';
 
 @Injectable()
 export class DevicesService {
@@ -45,6 +47,18 @@ export class DevicesService {
             deviceSign: device.deviceSign,
             createDate: device.createDate,
         };
+    }
+
+    async updateLastActivity(device: Device) {
+        await this.deviceModel.updateOne({ id: device.id }, { $set: { lastActivityDate: new Date() } });
+    }
+
+    async getAllDevices(user: User): Promise<Device[]> {
+        const devices = await this.deviceModel.find({ holderUserId: user.id }).lean().exec();
+
+        console.log('devices:', devices);
+
+        return devices.map((device) => plainToClass(Device, device, { excludeExtraneousValues: true }));
     }
 
     async changeOwnerByUserId(oldUserId: string, newUserId: string): Promise<void> {

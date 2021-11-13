@@ -17,12 +17,14 @@ import { SyncEntity, SyncPairEntity } from '@/sync/entities/sync';
 import { PairEntity } from '@/sync/entities/pair';
 import { DeleteEntity, DeletePairEntity } from '@/sync/entities/delete';
 import { merge } from 'lodash';
+import { DevicesService } from '@/auth/devices/service';
 
 @Injectable()
 export class SyncService {
     private readonly logger = new Logger(SyncService.name);
 
     constructor(
+        private devicesService: DevicesService,
         private vcsService: VCSService,
         private foldersService: FoldersSyncService,
         @InjectModel(HistorySchema)
@@ -41,6 +43,7 @@ export class SyncService {
     async pushState(pushRequest: PushRequestEntity, user: User, device: Device): Promise<PushResponseEntity> {
         this.logger.log(`Push state {user.id:${user.id} device.id:${device.id}}...`);
 
+        await this.devicesService.updateLastActivity(device);
         const now = Date.now().valueOf();
         const { commit: serverHeadCommit } = await this.vcsService.getHead(user);
 
@@ -260,6 +263,8 @@ export class SyncService {
 
     async pullState(pullRequest: PullRequestEntity, user: User, device: Device): Promise<PullResponseEntity> {
         const { commit: serverHeadCommit } = await this.vcsService.getHead(user);
+
+        await this.devicesService.updateLastActivity(device);
 
         if (serverHeadCommit === pullRequest.fromCommit) return null;
 
