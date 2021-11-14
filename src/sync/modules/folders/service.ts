@@ -152,14 +152,6 @@ export class FoldersSyncService {
             .lean()
             .exec();
 
-        const deletedFolders = await this.folderModel
-            .find({
-                ...query,
-                lastAction: STATE_ACTION.delete,
-            })
-            .lean()
-            .exec();
-
         if (!fromCommit) {
             return {
                 create: [...createFolders, ...updateFolders].map((folder) =>
@@ -174,6 +166,18 @@ export class FoldersSyncService {
             };
         }
 
+        const deletedFolders = await this.historyModel
+            .find({
+                userId: user.id,
+                commit: query.updateCommit,
+                entityType: 'folder',
+                action: STATE_ACTION.delete,
+            })
+            .lean()
+            .exec();
+
+        console.log('deletedFolders:', deletedFolders)
+
         return {
             create: createFolders.map((folder) =>
                 plainToClass(FolderSnapshot, folder, { excludeExtraneousValues: true }),
@@ -181,8 +185,12 @@ export class FoldersSyncService {
             update: updateFolders.map((folder) =>
                 plainToClass(FolderSnapshot, folder, { excludeExtraneousValues: true }),
             ),
-            delete: deletedFolders.map((folder) =>
-                plainToClass(DeleteEntity, folder, { excludeExtraneousValues: true }),
+            delete: deletedFolders.map((deletedEntity) =>
+                plainToClass(
+                    DeleteEntity,
+                    { ...deletedEntity, id: deletedEntity.entityId },
+                    { excludeExtraneousValues: true },
+                ),
             ),
         };
     }
