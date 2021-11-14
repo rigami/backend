@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { UsersModule } from '@/auth/users/module';
-import { AuthModule } from '@/auth/auth/module';
+import { AuthCommonModule } from '@/auth/module';
 import { SiteParseModule } from '@/site-parse/module';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -22,7 +22,7 @@ import { SyncModule } from '@/sync/module';
             connectionName: 'sync',
             useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-sync' }),
         }),
-        AuthModule,
+        AuthCommonModule,
         UsersModule,
         DevicesModule,
         SiteParseModule,

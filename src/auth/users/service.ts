@@ -4,6 +4,7 @@ import { InjectModel } from 'nestjs-typegoose';
 import { UserSchema } from './schemas/user';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
+import { DevicesService } from '@/auth/devices/service';
 
 @Injectable()
 export class UsersService {
@@ -12,6 +13,7 @@ export class UsersService {
     constructor(
         @InjectModel(UserSchema)
         private readonly userModel: ReturnModelType<typeof UserSchema>,
+        private devicesService: DevicesService,
     ) {}
 
     async findOneById(userId: string): Promise<User | null> {
@@ -48,6 +50,8 @@ export class UsersService {
         const user = await this.userModel.findOneAndDelete({ id: userId });
 
         if (!user) return null;
+
+        await this.devicesService.deleteAllByUserId(userId);
 
         return {
             id: user.id,

@@ -53,6 +53,12 @@ export class DevicesService {
         await this.deviceModel.updateOne({ id: device.id }, { $set: { lastActivityDate: new Date() } });
     }
 
+    async deleteAllByUserId(userId: string) {
+        const statistics = await this.deviceModel.deleteMany({ holderUserId: userId });
+
+        this.logger.log(`Deleted all ${statistics.deletedCount} devices by user id:${userId}...`);
+    }
+
     async getAllDevices(user: User): Promise<Device[]> {
         const devices = await this.deviceModel.find({ holderUserId: user.id }).lean().exec();
 

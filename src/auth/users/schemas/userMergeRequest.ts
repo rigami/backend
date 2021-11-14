@@ -5,6 +5,12 @@ export class UserMergeRequestSchema {
     @Prop({ required: true, unique: true })
     mergedUserId!: string;
 
+    @Prop({ required: true })
+    mergedUserIsTemp!: boolean;
+
+    @Prop({ required: true, unique: true })
+    mergedFromDeviceId!: string;
+
     @Prop({ unique: true })
     code: string;
 
