@@ -1,108 +1,119 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from 'nestjs-typegoose';
-import { BookmarkSchema } from './schemas/bookmark';
+import { BookmarkSnapshotSchema } from './schemas/bookmark.snapshot';
 import { ReturnModelType } from '@typegoose/typegoose';
-import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { DeleteEntity } from '@/sync/entities/delete';
-import { BookmarkPush } from '@/sync/modules/bookmarks/entities/bookmarkPush';
+import { DeleteEntity, DeletePairEntity } from '@/sync/entities/delete';
 import { plainToClass } from 'class-transformer';
 import { STATE_ACTION } from '@/sync/entities/snapshot';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { Commit } from '@/utils/vcs/entities/commit';
-import { BookmarksPush } from '@/sync/modules/bookmarks/entities/push';
+import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
+import { Bookmark } from '@/sync/modules/bookmarks/entities/bookmark';
+import { BookmarkSnapshot } from '@/sync/modules/bookmarks/entities/bookmark.snapshot';
 
 @Injectable()
 export class BookmarksSyncService {
     private readonly logger = new Logger(BookmarksSyncService.name);
 
     constructor(
-        @InjectModel(BookmarkSchema)
-        private readonly bookmarkModel: ReturnModelType<typeof BookmarkSchema>,
+        @InjectModel(BookmarkSnapshotSchema)
+        private readonly bookmarkModel: ReturnModelType<typeof BookmarkSnapshotSchema>,
+        @InjectModel(HistorySchema)
+        private readonly historyModel: ReturnModelType<typeof HistorySchema>,
     ) {}
 
-    async saveNewBookmarks(bookmarks: BookmarkPush[], user: User, stage: Stage) {
-        await this.bookmarkModel.create(
-            bookmarks.map((bookmark) => ({
-                ...bookmark,
-                lastAction: STATE_ACTION.create,
+    async merge(tags, processTag, foldersPairs, tagsPairs) {
+        const pairBookmarksIds = {};
+
+        for (const entity of tags) {
+            const pair = await processTag({
+                ...entity,
+                payload: {
+                    ...entity.payload,
+                    folderId: entity.payload.folderId || foldersPairs[entity.payload.folderTempId],
+                    tagsIds: [
+                        ...entity.payload.tagsIds,
+                        ...entity.payload.tagsTempIds.map((tempId) => tagsPairs[tempId]),
+                    ],
+                    folderTempId: null,
+                    tagsTempIds: null,
+                },
+            });
+
+            pairBookmarksIds[pair.localId] = pair.cloudId;
+        }
+
+        return pairBookmarksIds;
+    }
+
+    async exist(searchBookmark: Bookmark, user: User): Promise<BookmarkSnapshot> {
+        let bookmark;
+
+        if (searchBookmark.id) {
+            bookmark = await this.bookmarkModel.findOne({
+                id: searchBookmark.id,
                 userId: user.id,
-                createCommit: stage.commit,
-                updateCommit: stage.commit,
-            })),
-        );
+            });
+        }
+
+        if (!bookmark) {
+            bookmark = await this.bookmarkModel.findOne({
+                folderId: searchBookmark.folderId,
+                title: searchBookmark.title,
+                userId: user.id,
+            });
+        }
+
+        return bookmark && plainToClass(BookmarkSnapshot, bookmark, { excludeExtraneousValues: true });
     }
 
-    async updateBookmarks(bookmarks: BookmarkPush[], user: User, stage: Stage) {
-        /* await Promise.all(
-            bookmarks.map((bookmark) =>
-                this.bookmarkModel.update({ id: bookmark.id, userId: user.id }, [
-                    {
-                        $set: {
-                            ...bookmark,
-                            userId: user.id,
-                            updateCommit: stage.commit,
-                            lastAction: {
-                                $cond: {
-                                    if: { $gt: [bookmark.updateDate, '$updateDate'] },
-                                    then: STATE_ACTION.update,
-                                    else: '$lastAction',
-                                },
-                            },
-                        },
-                    },
-                ]),
-            ),
-        ); */
+    async create(bookmark: BookmarkSnapshot, user: User, stage: Stage) {
+        return await this.bookmarkModel.create({
+            ...bookmark,
+            lastAction: STATE_ACTION.create,
+            userId: user.id,
+            createCommit: stage.commit,
+            updateCommit: stage.commit,
+        });
     }
 
-    async deleteBookmarks(bookmarks: DeleteEntity[], user: User, stage: Stage) {
-        /* await Promise.all(
-            bookmarks.map((bookmark) =>
-                this.bookmarkModel.update({ id: bookmark.id, userId: user.id }, [
-                    {
-                        $set: {
-                            userId: user.id,
-                            updateCommit: stage.commit,
-                            lastAction: {
-                                $cond: {
-                                    if: { $gt: [bookmark.updateDate, '$updateDate'] },
-                                    then: STATE_ACTION.delete,
-                                    else: '$lastAction',
-                                },
-                            },
-                        },
-                    },
-                ]),
-            ),
-        ); */
-    }
-
-    async pushState(stage: Stage, localCommit: Commit, state: BookmarksPush, user: User, device: Device): Promise<any> {
-        this.logger.log(
-            `Push bookmarks state for user.id:${user.id} device.id:${device.id}
-            Summary:
-            Create: ${state.create.length}
-            Update: ${state.update.length}
-            Delete: ${state.delete.length}`,
+    async update(bookmark: BookmarkSnapshot, user: User, stage: Stage) {
+        await this.bookmarkModel.updateOne(
+            {
+                id: bookmark.id,
+                userId: user.id,
+            },
+            {
+                $set: {
+                    ...bookmark,
+                    lastAction: STATE_ACTION.update,
+                    userId: user.id,
+                    createCommit: stage.commit,
+                    updateCommit: stage.commit,
+                },
+            },
         );
 
-        if (state.create.length !== 0) {
-            await this.saveNewBookmarks(state.create, user, stage);
-        }
-
-        if (state.update.length !== 0) {
-            await this.updateBookmarks(state.update, user, stage);
-        }
-
-        if (state.delete.length !== 0) {
-            await this.deleteBookmarks(state.delete, user, stage);
-        }
+        return this.bookmarkModel.findOne({ id: bookmark.id, userId: user.id });
     }
 
-    async pullState(fromCommit: Commit, toCommit: Commit, user: User, device: Device): Promise<BookmarksPush> {
-        this.logger.log(`Pull bookmarks state for user.id:${user.id} device.id:${device.id}`);
+    async delete(deleteEntity: DeletePairEntity, user: User, stage: Stage) {
+        await this.bookmarkModel.deleteOne({
+            id: deleteEntity.id,
+            userId: user.id,
+        });
+        await this.historyModel.create({
+            userId: user.id,
+            action: HISTORY_ACTION.delete,
+            entityType: 'bookmark',
+            entityId: deleteEntity.id,
+            date: deleteEntity.deleteDate,
+            commit: stage.commit,
+        });
+    }
 
+    async get(fromCommit: Commit, toCommit: Commit, user: User) {
         let query;
 
         if (fromCommit) {
@@ -132,20 +143,36 @@ export class BookmarksSyncService {
             .lean()
             .exec();
 
-        const deletedBookmarks = await this.bookmarkModel
+        if (!fromCommit) {
+            return {
+                create: [...createBookmarks, ...updateBookmarks].map((bookmark) =>
+                    plainToClass(
+                        BookmarkSnapshot,
+                        { ...bookmark, lastAction: STATE_ACTION.create },
+                        { excludeExtraneousValues: true },
+                    ),
+                ),
+                update: [],
+                delete: [],
+            };
+        }
+
+        const deletedBookmarks = await this.historyModel
             .find({
-                ...query,
-                lastAction: STATE_ACTION.delete,
+                userId: user.id,
+                commit: query.updateCommit,
+                entityType: 'bookmark',
+                action: STATE_ACTION.delete,
             })
             .lean()
             .exec();
 
         return {
             create: createBookmarks.map((bookmark) =>
-                plainToClass(BookmarkPush, bookmark, { excludeExtraneousValues: true }),
+                plainToClass(BookmarkSnapshot, bookmark, { excludeExtraneousValues: true }),
             ),
             update: updateBookmarks.map((bookmark) =>
-                plainToClass(BookmarkPush, bookmark, { excludeExtraneousValues: true }),
+                plainToClass(BookmarkSnapshot, bookmark, { excludeExtraneousValues: true }),
             ),
             delete: deletedBookmarks.map((bookmark) =>
                 plainToClass(DeleteEntity, bookmark, { excludeExtraneousValues: true }),

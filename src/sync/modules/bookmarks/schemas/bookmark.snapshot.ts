@@ -6,7 +6,7 @@ import { v4 as UUIDv4 } from 'uuid';
 @Index({ userId: 1, folderId: 1, title: 1 }, { unique: true })
 @Index({ userId: 1, folderId: 1, url: 1 }, { unique: true })
 @Index({ userId: 1, id: 1 }, { unique: true })
-export class BookmarkSchema extends StateEntitySchema {
+export class BookmarkSnapshotSchema extends StateEntitySchema {
     @Prop({ required: true, default: () => UUIDv4() })
     id: string;
 

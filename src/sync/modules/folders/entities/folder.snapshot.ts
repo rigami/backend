@@ -1,8 +1,8 @@
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { SnapshotEntity } from '@/sync/entities/snapshot';
 import { Expose } from 'class-transformer';
-import { DefaultEntity } from '@/utils/defaultEntity';
+import { IsOptional, IsString, IsUUID } from 'class-validator';
 
-export class Folder extends DefaultEntity {
+export class FolderSnapshot extends SnapshotEntity {
     @Expose()
     @IsUUID()
     @IsOptional()

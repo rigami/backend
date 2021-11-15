@@ -6,7 +6,6 @@ import { ReturnModelType } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
 import { User } from '@/auth/users/entities/user';
 import { plainToClass } from 'class-transformer';
-import { FolderSnapshot } from '@/sync/modules/folders/entities/folder';
 
 @Injectable()
 export class DevicesService {

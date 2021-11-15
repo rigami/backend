@@ -1,8 +1,8 @@
-import { IsNumber, IsString } from 'class-validator';
+import { SnapshotEntity } from '@/sync/entities/snapshot';
 import { Expose } from 'class-transformer';
-import { DefaultEntity } from '@/utils/defaultEntity';
+import { IsNumber, IsString } from 'class-validator';
 
-export class Tag extends DefaultEntity {
+export class TagSnapshot extends SnapshotEntity {
     @Expose()
     @IsString()
     readonly name: string;

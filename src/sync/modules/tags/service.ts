@@ -1,109 +1,106 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from 'nestjs-typegoose';
-import { TagSchema } from './schemas/tag';
+import { TagSnapshotSchema } from './schemas/tag.snapshot';
 import { ReturnModelType } from '@typegoose/typegoose';
-import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
-import { DeleteEntity } from '@/sync/entities/delete';
+import { DeleteEntity, DeletePairEntity } from '@/sync/entities/delete';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { Commit } from '@/utils/vcs/entities/commit';
 import { STATE_ACTION } from '@/sync/entities/snapshot';
-import { Tag } from './entities/tag';
-// import { TagsState } from './entities/tagPush';
 import { plainToClass } from 'class-transformer';
+import { Tag } from './entities/tag';
+import { TagSnapshot } from '@/sync/modules/tags/entities/tag.snapshot';
+import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
 
 @Injectable()
 export class TagsSyncService {
     private readonly logger = new Logger(TagsSyncService.name);
 
     constructor(
-        @InjectModel(TagSchema)
-        private readonly tagModel: ReturnModelType<typeof TagSchema>,
+        @InjectModel(TagSnapshotSchema)
+        private readonly tagModel: ReturnModelType<typeof TagSnapshotSchema>,
+        @InjectModel(HistorySchema)
+        private readonly historyModel: ReturnModelType<typeof HistorySchema>,
     ) {}
 
-    async saveNewTags(tags: Tag[], user: User, stage: Stage) {
-        await this.tagModel.create(
-            tags.map((folder) => ({
-                ...folder,
-                lastAction: STATE_ACTION.create,
+    async merge(tags, processTag) {
+        const pairTagsIds = {};
+
+        for (const entity of tags) {
+            const pair = await processTag(entity);
+
+            pairTagsIds[pair.localId] = pair.cloudId;
+        }
+
+        return pairTagsIds;
+    }
+
+    async exist(searchTag: Tag, user: User): Promise<TagSnapshot> {
+        let tag;
+
+        if (searchTag.id) {
+            tag = await this.tagModel.findOne({
+                id: searchTag.id,
                 userId: user.id,
-                createCommit: stage.commit,
-                updateCommit: stage.commit,
-            })),
-        );
+            });
+        }
+
+        if (!tag) {
+            tag = await this.tagModel.findOne({
+                name: searchTag.name,
+                userId: user.id,
+            });
+        }
+
+        return tag && plainToClass(TagSnapshot, tag, { excludeExtraneousValues: true });
     }
 
-    async updateTags(tags: Tag[], user: User, stage: Stage) {
-        /* await Promise.all(
-            tags.map((folder) =>
-                this.tagModel.update({ id: folder.id, userId: user.id }, [
-                    {
-                        $set: {
-                            ...folder,
-                            userId: user.id,
-                            updateCommit: stage.commit,
-                            lastAction: {
-                                $cond: {
-                                    if: { $gt: [folder.updateDate, '$updateDate'] },
-                                    then: STATE_ACTION.update,
-                                    else: '$lastAction',
-                                },
-                            },
-                        },
-                    },
-                ]),
-            ),
-        ); */
+    async create(tag: TagSnapshot, user: User, stage: Stage) {
+        return await this.tagModel.create({
+            ...tag,
+            lastAction: STATE_ACTION.create,
+            userId: user.id,
+            createCommit: stage.commit,
+            updateCommit: stage.commit,
+        });
     }
 
-    async deleteTags(tags: DeleteEntity[], user: User, stage: Stage) {
-        /* await Promise.all(
-            tags.map((folder) =>
-                this.tagModel.update({ id: folder.id, userId: user.id }, [
-                    {
-                        $set: {
-                            ...folder,
-                            userId: user.id,
-                            updateCommit: stage.commit,
-                            lastAction: {
-                                $cond: {
-                                    if: { $gt: [folder.updateDate, '$updateDate'] },
-                                    then: STATE_ACTION.delete,
-                                    else: '$lastAction',
-                                },
-                            },
-                        },
-                    },
-                ]),
-            ),
-        ); */
-    }
-
-    /* async pushState(stage: Stage, localCommit: Commit, state: TagsState, user: User, device: Device): Promise<any> {
-        this.logger.log(
-            `Push tags state for user.id:${user.id} device.id:${device.id}
-            Summary:
-            Create: ${state.create.length}
-            Update: ${state.update.length}
-            Delete: ${state.delete.length}`,
+    async update(tag: TagSnapshot, user: User, stage: Stage) {
+        await this.tagModel.updateOne(
+            {
+                id: tag.id,
+                userId: user.id,
+            },
+            {
+                $set: {
+                    ...tag,
+                    lastAction: STATE_ACTION.update,
+                    userId: user.id,
+                    createCommit: stage.commit,
+                    updateCommit: stage.commit,
+                },
+            },
         );
 
-        if (state.create.length !== 0) {
-            await this.saveNewTags(state.create, user, stage);
-        }
-
-        if (state.update.length !== 0) {
-            await this.updateTags(state.update, user, stage);
-        }
-
-        if (state.delete.length !== 0) {
-            await this.deleteTags(state.delete, user, stage);
-        }
+        return this.tagModel.findOne({ id: tag.id, userId: user.id });
     }
 
-    async pullState(fromCommit: Commit, toCommit: Commit, user: User, device: Device): Promise<TagsState> {
-        this.logger.log(`Pull tags state for user.id:${user.id} device.id:${device.id}`);
+    async delete(deleteEntity: DeletePairEntity, user: User, stage: Stage) {
+        await this.tagModel.deleteOne({
+            id: deleteEntity.id,
+            userId: user.id,
+        });
+        await this.historyModel.create({
+            userId: user.id,
+            action: HISTORY_ACTION.delete,
+            entityType: 'tag',
+            entityId: deleteEntity.id,
+            date: deleteEntity.deleteDate,
+            commit: stage.commit,
+        });
+    }
 
+    async get(fromCommit: Commit, toCommit: Commit, user: User) {
         let query;
 
         if (fromCommit) {
@@ -133,18 +130,34 @@ export class TagsSyncService {
             .lean()
             .exec();
 
-        const deletedTags = await this.tagModel
+        if (!fromCommit) {
+            return {
+                create: [...createTags, ...updateTags].map((tag) =>
+                    plainToClass(
+                        TagSnapshot,
+                        { ...tag, lastAction: STATE_ACTION.create },
+                        { excludeExtraneousValues: true },
+                    ),
+                ),
+                update: [],
+                delete: [],
+            };
+        }
+
+        const deletedTags = await this.historyModel
             .find({
-                ...query,
-                lastAction: STATE_ACTION.delete,
+                userId: user.id,
+                commit: query.updateCommit,
+                entityType: 'tag',
+                action: STATE_ACTION.delete,
             })
             .lean()
             .exec();
 
         return {
-            create: createTags.map((folder) => plainToClass(Tag, folder, { excludeExtraneousValues: true })),
-            update: updateTags.map((folder) => plainToClass(Tag, folder, { excludeExtraneousValues: true })),
-            delete: deletedTags.map((folder) => plainToClass(DeleteEntity, folder, { excludeExtraneousValues: true })),
+            create: createTags.map((tag) => plainToClass(TagSnapshot, tag, { excludeExtraneousValues: true })),
+            update: updateTags.map((tag) => plainToClass(TagSnapshot, tag, { excludeExtraneousValues: true })),
+            delete: deletedTags.map((tag) => plainToClass(DeleteEntity, tag, { excludeExtraneousValues: true })),
         };
-    } */
+    }
 }

@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from 'nestjs-typegoose';
-import { FolderSchema } from './schemas/folder';
+import { FolderSnapshotSchema } from './schemas/folder.snapshot';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
@@ -8,7 +8,8 @@ import { DeleteEntity, DeletePairEntity } from '@/sync/entities/delete';
 import { Stage } from '@/utils/vcs/entities/stage';
 import { Commit } from '@/utils/vcs/entities/commit';
 import { STATE_ACTION } from '@/sync/entities/snapshot';
-import { Folder, FolderSnapshot } from '@/sync/modules/folders/entities/folder';
+import { Folder } from '@/sync/modules/folders/entities/folder';
+import { FolderSnapshot } from '@/sync/modules/folders/entities/folder.snapshot';
 import { plainToClass } from 'class-transformer';
 import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
 import { merge, omitBy } from 'lodash';
@@ -18,8 +19,8 @@ export class FoldersSyncService {
     private readonly logger = new Logger(FoldersSyncService.name);
 
     constructor(
-        @InjectModel(FolderSchema)
-        private readonly folderModel: ReturnModelType<typeof FolderSchema>,
+        @InjectModel(FolderSnapshotSchema)
+        private readonly folderModel: ReturnModelType<typeof FolderSnapshotSchema>,
         @InjectModel(HistorySchema)
         private readonly historyModel: ReturnModelType<typeof HistorySchema>,
     ) {}
@@ -52,6 +53,7 @@ export class FoldersSyncService {
                     payload: {
                         ...entity.payload,
                         parentId: entity.payload.parentId || pairFoldersIds[entity.payload.parentTempId],
+                        parentTempId: null,
                     },
                 });
 
@@ -128,7 +130,7 @@ export class FoldersSyncService {
         });
     }
 
-    async get(fromCommit: Commit, toCommit: Commit, user: User, device: Device) {
+    async get(fromCommit: Commit, toCommit: Commit, user: User) {
         const query = {
             userId: user.id,
             updateCommit: omitBy({ $gt: fromCommit?.head, $lte: toCommit?.head }, (date) => !date),
@@ -175,8 +177,6 @@ export class FoldersSyncService {
             })
             .lean()
             .exec();
-
-        console.log('deletedFolders:', deletedFolders)
 
         return {
             create: createFolders.map((folder) =>

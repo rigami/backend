@@ -1,15 +1,9 @@
 import { IsString, IsEnum, IsArray, IsUUID } from 'class-validator';
 import { Expose } from 'class-transformer';
-import { DefaultEntity } from '@/utils/defaultEntity';
-import { Bookmark } from '@/sync/modules/bookmarks/entities/bookmark';
+import { SnapshotEntity } from '@/sync/entities/snapshot';
+import { VARIANT } from '@/sync/modules/bookmarks/entities/bookmark';
 
-export enum VARIANT {
-    'poster' = 'poster',
-    'default' = 'default',
-    'symbol' = 'symbol',
-}
-
-export class SyncedBookmark extends Bookmark {
+export class BookmarkSnapshot extends SnapshotEntity {
     @Expose()
     @IsEnum(VARIANT)
     readonly variant: string;

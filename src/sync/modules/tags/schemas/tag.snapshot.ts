@@ -2,16 +2,17 @@ import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 import { StateEntitySchema } from '@/sync/schemas/state';
 import { v4 as UUIDv4 } from 'uuid';
 
-@ModelOptions({ options: { customName: 'folders' } })
-@Index({ userId: 1, parentId: 1, name: 1 }, { unique: true })
+@ModelOptions({ options: { customName: 'tags' } })
+@Index({ userId: 1, name: 1 }, { unique: true })
+@Index({ userId: 1, colorKey: 1 }, { unique: true })
 @Index({ userId: 1, id: 1 }, { unique: true })
-export class FolderSchema extends StateEntitySchema {
+export class TagSnapshotSchema extends StateEntitySchema {
     @Prop({ required: true, default: () => UUIDv4() })
     id: string;
 
     @Prop({ required: true })
-    parentId: string;
+    name: string;
 
     @Prop({ required: true })
-    name: string;
+    colorKey: number;
 }

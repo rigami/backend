@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { FoldersSyncService } from './service';
 import { TypegooseModule } from 'nestjs-typegoose';
-import { FolderSchema } from './schemas/folder';
+import { FolderSnapshotSchema } from './schemas/folder.snapshot';
 import { HistorySchema } from '@/sync/schemas/history';
 
 @Module({
-    imports: [TypegooseModule.forFeature([FolderSchema, HistorySchema], 'sync')],
+    imports: [TypegooseModule.forFeature([FolderSnapshotSchema, HistorySchema], 'sync')],
     providers: [FoldersSyncService],
     exports: [FoldersSyncService],
 })

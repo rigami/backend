@@ -1,14 +1,14 @@
 import { Expose, Type } from 'class-transformer';
-import { IsDate, IsOptional, IsUUID } from 'class-validator';
+import { IsDate, IsUUID } from 'class-validator';
 import { BaseSyncEntity } from './base';
 
-export class DeleteEntity extends BaseSyncEntity {
+export class DeleteEntity {
     @Expose()
     @IsUUID()
     readonly id: string;
 }
 
-export class DeletePairEntity extends DeleteEntity {
+export class DeletePairEntity extends BaseSyncEntity {
     @Expose()
     @IsUUID()
     readonly id: string;
