@@ -11,19 +11,59 @@ import { plainToClass } from 'class-transformer';
 import { Tag } from './entities/tag';
 import { TagSnapshot } from '@/sync/modules/tags/entities/tag.snapshot';
 import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
+import { ItemSyncService } from '@/sync/modules/ItemSyncService';
+import { CreatePairEntity, SyncPairEntity } from '@/sync/entities/sync';
+import { Action } from '@/sync/utils/actions';
 
 @Injectable()
-export class TagsSyncService {
+export class TagsSyncService extends ItemSyncService<Tag, TagSnapshot> {
     private readonly logger = new Logger(TagsSyncService.name);
 
     constructor(
         @InjectModel(TagSnapshotSchema)
-        private readonly tagModel: ReturnModelType<typeof TagSnapshotSchema>,
+        readonly tagModel: ReturnModelType<typeof TagSnapshotSchema>,
         @InjectModel(HistorySchema)
-        private readonly historyModel: ReturnModelType<typeof HistorySchema>,
-    ) {}
+        readonly historyModel: ReturnModelType<typeof HistorySchema>,
+    ) {
+        super(tagModel, historyModel);
+    }
 
-    async merge(tags, processTag) {
+    async merge(
+        clientTag: CreatePairEntity | SyncPairEntity,
+        cloudTag: SyncPairEntity,
+        desiredAction: Action,
+        user: User,
+    ) {
+        if (clientTag.payload.colorKey === cloudTag.payload.colorKey) {
+            return super.merge(clientTag, cloudTag, desiredAction, user);
+        }
+
+        let mutatedPayload;
+
+        if (desiredAction === Action.UPDATE_SERVER || desiredAction === Action.CREATE_SERVER) {
+            const tags = await this.tagModel.find({ userId: user.id });
+
+            const colorsKeys = tags.map(({ colorKey }) => colorKey).sort((a, b) => a - b);
+
+            let nextColorKey = 1;
+            while (colorsKeys[nextColorKey - 1] === nextColorKey && nextColorKey <= colorsKeys.length) {
+                nextColorKey += 1;
+            }
+
+            mutatedPayload = { ...clientTag.payload, colorKey: nextColorKey };
+        } else {
+            mutatedPayload = { ...clientTag.payload, colorKey: cloudTag.payload.colorKey };
+        }
+
+        return super.merge(
+            { ...clientTag, payload: mutatedPayload },
+            { ...cloudTag, payload: mutatedPayload },
+            desiredAction,
+            user,
+        );
+    }
+
+    async processSequentially(tags, processTag) {
         const pairTagsIds = {};
 
         for (const entity of tags) {
@@ -35,34 +75,33 @@ export class TagsSyncService {
         return pairTagsIds;
     }
 
-    async exist(searchTag: Tag, user: User): Promise<TagSnapshot> {
+    async exist(searchTag: Tag, user: User): Promise<SyncPairEntity> {
         let tag;
 
         if (searchTag.id) {
-            tag = await this.tagModel.findOne({
-                id: searchTag.id,
-                userId: user.id,
-            });
+            tag = await this.existById(searchTag.id, user);
+
+            if (tag) return tag;
         }
 
-        if (!tag) {
-            tag = await this.tagModel.findOne({
-                name: searchTag.name,
-                userId: user.id,
-            });
-        }
+        tag = await this.tagModel.findOne({
+            name: searchTag.name,
+            userId: user.id,
+        });
 
-        return tag && plainToClass(TagSnapshot, tag, { excludeExtraneousValues: true });
+        return tag && plainToClass(SyncPairEntity, { ...tag, payload: tag }, { excludeExtraneousValues: true });
     }
 
     async create(tag: TagSnapshot, user: User, stage: Stage) {
-        return await this.tagModel.create({
+        const createdTag = await this.tagModel.create({
             ...tag,
             lastAction: STATE_ACTION.create,
             userId: user.id,
             createCommit: stage.commit,
             updateCommit: stage.commit,
         });
+
+        return plainToClass(SyncPairEntity, { ...createdTag, payload: createdTag }, { excludeExtraneousValues: true });
     }
 
     async update(tag: TagSnapshot, user: User, stage: Stage) {
@@ -82,7 +121,9 @@ export class TagsSyncService {
             },
         );
 
-        return this.tagModel.findOne({ id: tag.id, userId: user.id });
+        const updatedTag = await this.tagModel.findOne({ id: tag.id, userId: user.id });
+
+        return plainToClass(SyncPairEntity, { ...updatedTag, payload: updatedTag }, { excludeExtraneousValues: true });
     }
 
     async delete(deleteEntity: DeletePairEntity, user: User, stage: Stage) {

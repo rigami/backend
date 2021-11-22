@@ -11,19 +11,23 @@ import { Commit } from '@/utils/vcs/entities/commit';
 import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
 import { Bookmark } from '@/sync/modules/bookmarks/entities/bookmark';
 import { BookmarkSnapshot } from '@/sync/modules/bookmarks/entities/bookmark.snapshot';
+import { ItemSyncService } from '@/sync/modules/ItemSyncService';
+import { SyncPairEntity } from '@/sync/entities/sync';
 
 @Injectable()
-export class BookmarksSyncService {
+export class BookmarksSyncService extends ItemSyncService<Bookmark, BookmarkSnapshot> {
     private readonly logger = new Logger(BookmarksSyncService.name);
 
     constructor(
         @InjectModel(BookmarkSnapshotSchema)
-        private readonly bookmarkModel: ReturnModelType<typeof BookmarkSnapshotSchema>,
+        readonly bookmarkModel: ReturnModelType<typeof BookmarkSnapshotSchema>,
         @InjectModel(HistorySchema)
-        private readonly historyModel: ReturnModelType<typeof HistorySchema>,
-    ) {}
+        readonly historyModel: ReturnModelType<typeof HistorySchema>,
+    ) {
+        super(bookmarkModel, historyModel);
+    }
 
-    async merge(tags, processTag, foldersPairs, tagsPairs) {
+    async processSequentially(tags, processTag, foldersPairs, tagsPairs) {
         const pairBookmarksIds = {};
 
         for (const entity of tags) {
@@ -47,14 +51,13 @@ export class BookmarksSyncService {
         return pairBookmarksIds;
     }
 
-    async exist(searchBookmark: Bookmark, user: User): Promise<BookmarkSnapshot> {
+    async exist(searchBookmark: Bookmark, user: User): Promise<SyncPairEntity> {
         let bookmark;
 
         if (searchBookmark.id) {
-            bookmark = await this.bookmarkModel.findOne({
-                id: searchBookmark.id,
-                userId: user.id,
-            });
+            bookmark = await this.existById(searchBookmark.id, user);
+
+            if (bookmark) return bookmark;
         }
 
         if (!bookmark) {
@@ -65,20 +68,29 @@ export class BookmarksSyncService {
             });
         }
 
-        return bookmark && plainToClass(BookmarkSnapshot, bookmark, { excludeExtraneousValues: true });
+        return (
+            bookmark &&
+            plainToClass(SyncPairEntity, { ...bookmark, payload: bookmark }, { excludeExtraneousValues: true })
+        );
     }
 
-    async create(bookmark: BookmarkSnapshot, user: User, stage: Stage) {
-        return await this.bookmarkModel.create({
+    async create(bookmark: BookmarkSnapshot, user: User, stage: Stage): Promise<SyncPairEntity> {
+        const createdBookmark = await this.bookmarkModel.create({
             ...bookmark,
             lastAction: STATE_ACTION.create,
             userId: user.id,
             createCommit: stage.commit,
             updateCommit: stage.commit,
         });
+
+        return plainToClass(
+            SyncPairEntity,
+            { ...createdBookmark, payload: createdBookmark },
+            { excludeExtraneousValues: true },
+        );
     }
 
-    async update(bookmark: BookmarkSnapshot, user: User, stage: Stage) {
+    async update(bookmark: BookmarkSnapshot, user: User, stage: Stage): Promise<SyncPairEntity> {
         await this.bookmarkModel.updateOne(
             {
                 id: bookmark.id,
@@ -95,7 +107,13 @@ export class BookmarksSyncService {
             },
         );
 
-        return this.bookmarkModel.findOne({ id: bookmark.id, userId: user.id });
+        const updatedBookmark = await this.bookmarkModel.findOne({ id: bookmark.id, userId: user.id });
+
+        return plainToClass(
+            SyncPairEntity,
+            { ...updatedBookmark, payload: updatedBookmark },
+            { excludeExtraneousValues: true },
+        );
     }
 
     async delete(deleteEntity: DeletePairEntity, user: User, stage: Stage) {

@@ -1,7 +1,7 @@
 import { Expose, Type } from 'class-transformer';
 import { IsDefined, IsOptional, ValidateNested } from 'class-validator';
 import { DeleteEntity } from './delete';
-import { SyncEntity } from './sync';
+import { SyncPairEntity } from './sync';
 
 export class PullResponseEntity {
     @IsOptional()
@@ -10,14 +10,14 @@ export class PullResponseEntity {
     @Expose()
     @IsDefined()
     @ValidateNested()
-    @Type(() => SyncEntity)
-    readonly create!: SyncEntity[];
+    @Type(() => SyncPairEntity)
+    readonly create!: SyncPairEntity[];
 
     @Expose()
     @IsDefined()
     @ValidateNested()
-    @Type(() => SyncEntity)
-    readonly update!: SyncEntity[];
+    @Type(() => SyncPairEntity)
+    readonly update!: SyncPairEntity[];
 
     @Expose()
     @IsDefined()

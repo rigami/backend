@@ -1,0 +1,8 @@
+export enum Action {
+    CREATE_CLIENT,
+    UPDATE_CLIENT,
+    DELETE_CLIENT,
+    CREATE_SERVER,
+    UPDATE_SERVER,
+    DELETE_SERVER,
+}

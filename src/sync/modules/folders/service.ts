@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from 'nestjs-typegoose';
 import { FolderSnapshotSchema } from './schemas/folder.snapshot';
 import { ReturnModelType } from '@typegoose/typegoose';
-import { Device } from '@/auth/devices/entities/device';
 import { User } from '@/auth/users/entities/user';
 import { DeleteEntity, DeletePairEntity } from '@/sync/entities/delete';
 import { Stage } from '@/utils/vcs/entities/stage';
@@ -13,19 +12,23 @@ import { FolderSnapshot } from '@/sync/modules/folders/entities/folder.snapshot'
 import { plainToClass } from 'class-transformer';
 import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
 import { merge, omitBy } from 'lodash';
+import { ItemSyncService } from '@/sync/modules/ItemSyncService';
+import { SyncPairEntity } from '@/sync/entities/sync';
 
 @Injectable()
-export class FoldersSyncService {
+export class FoldersSyncService extends ItemSyncService<Folder, FolderSnapshot> {
     private readonly logger = new Logger(FoldersSyncService.name);
 
     constructor(
         @InjectModel(FolderSnapshotSchema)
-        private readonly folderModel: ReturnModelType<typeof FolderSnapshotSchema>,
+        readonly folderModel: ReturnModelType<typeof FolderSnapshotSchema>,
         @InjectModel(HistorySchema)
-        private readonly historyModel: ReturnModelType<typeof HistorySchema>,
-    ) {}
+        readonly historyModel: ReturnModelType<typeof HistorySchema>,
+    ) {
+        super(folderModel, historyModel);
+    }
 
-    async merge(folders, processFolder) {
+    async processSequentially(folders, processFolder): Promise<any> {
         let syncedFoldersQueue = [...folders];
         let pairFoldersIds = {};
 
@@ -64,38 +67,42 @@ export class FoldersSyncService {
         return pairFoldersIds;
     }
 
-    async exist(searchFolder: Folder, user: User): Promise<FolderSnapshot> {
+    async exist(searchFolder: Folder, user: User): Promise<SyncPairEntity> {
         let folder;
 
         if (searchFolder.id) {
-            folder = await this.folderModel.findOne({
-                id: searchFolder.id,
-                userId: user.id,
-            });
+            folder = await this.existById(searchFolder.id, user);
+
+            if (folder) return folder;
         }
 
-        if (!folder) {
-            folder = await this.folderModel.findOne({
-                parentId: searchFolder.parentId,
-                name: searchFolder.name,
-                userId: user.id,
-            });
-        }
+        folder = await this.folderModel.findOne({
+            name: searchFolder.name,
+            userId: user.id,
+        });
 
-        return folder && plainToClass(FolderSnapshot, folder, { excludeExtraneousValues: true });
+        return (
+            folder && plainToClass(SyncPairEntity, { ...folder, payload: folder }, { excludeExtraneousValues: true })
+        );
     }
 
-    async create(folder: FolderSnapshot, user: User, stage: Stage) {
-        return await this.folderModel.create({
+    async create(folder: FolderSnapshot, user: User, stage: Stage): Promise<SyncPairEntity> {
+        const createdFolder = await this.folderModel.create({
             ...folder,
             lastAction: STATE_ACTION.create,
             userId: user.id,
             createCommit: stage.commit,
             updateCommit: stage.commit,
         });
+
+        return plainToClass(
+            SyncPairEntity,
+            { ...createdFolder, payload: createdFolder },
+            { excludeExtraneousValues: true },
+        );
     }
 
-    async update(folder: FolderSnapshot, user: User, stage: Stage) {
+    async update(folder: FolderSnapshot, user: User, stage: Stage): Promise<SyncPairEntity> {
         await this.folderModel.updateOne(
             {
                 id: folder.id,
@@ -112,7 +119,13 @@ export class FoldersSyncService {
             },
         );
 
-        return this.folderModel.findOne({ id: folder.id, userId: user.id });
+        const updatedFolder = await this.folderModel.findOne({ id: folder.id, userId: user.id });
+
+        return plainToClass(
+            SyncPairEntity,
+            { ...updatedFolder, payload: updatedFolder },
+            { excludeExtraneousValues: true },
+        );
     }
 
     async delete(deleteEntity: DeletePairEntity, user: User, stage: Stage) {

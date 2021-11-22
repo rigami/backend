@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import { IsBoolean, IsDate, IsObject, IsOptional, IsUUID } from 'class-validator';
+import { IsDate, IsObject, IsOptional, IsUUID } from 'class-validator';
 import { BaseSyncEntity } from './base';
 
 export class SyncEntity extends BaseSyncEntity {

@@ -13,17 +13,19 @@ import { InjectModel } from 'nestjs-typegoose';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
 import { PushResponseEntity } from '@/sync/entities/response.push';
-import { SyncPairEntity } from '@/sync/entities/sync';
+import { CreatePairEntity, SyncEntity, SyncPairEntity } from '@/sync/entities/sync';
 import { PairEntity } from '@/sync/entities/pair';
 import { DeletePairEntity } from '@/sync/entities/delete';
 import { DevicesService } from '@/auth/devices/service';
 import { BookmarksSyncService } from '@/sync/modules/bookmarks/service';
 import { TagsSyncService } from '@/sync/modules/tags/service';
+import { Action } from '@/sync/utils/actions';
+import { SnapshotEntity } from '@/sync/entities/snapshot';
 
 @Injectable()
 export class SyncService {
     private readonly logger = new Logger(SyncService.name);
-    private services;
+    private services: { folder: FoldersSyncService; bookmark: BookmarksSyncService; tag: TagsSyncService };
 
     constructor(
         private devicesService: DevicesService,
@@ -87,7 +89,7 @@ export class SyncService {
         };
 
         if (pushRequest.create.length !== 0) {
-            const mergeEntity = async (entity) => {
+            const mergeEntity = async (entity: CreatePairEntity) => {
                 let cloudEntity = await this.services[entity.entityType].exist({ id: null, ...entity.payload }, user);
 
                 const cloudDate = cloudEntity?.updateDate.valueOf();
@@ -96,53 +98,69 @@ export class SyncService {
                 if (cloudEntity) {
                     if (cloudDate > localDate) {
                         console.log('CREATE: Update on client');
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            entity,
+                            cloudEntity,
+                            Action.UPDATE_CLIENT,
+                            user,
+                        );
+
                         mergeResult.pair.push({
                             localId: entity.tempId,
-                            cloudId: cloudEntity.id,
-                            entityType: entity.entityType,
+                            cloudId: mergedEntity.id,
+                            entityType: mergedEntity.entityType,
                         });
-                        mergeResult.update.push({
-                            id: cloudEntity.id,
-                            entityType: entity.entityType,
-                            payload: cloudEntity,
-                            updateDate: cloudEntity.updateDate,
-                            createDate: cloudEntity.createDate,
-                            updateCommit: cloudEntity.updateCommit,
-                            createCommit: cloudEntity.createCommit,
-                        });
+                        mergeResult.update.push(mergedEntity);
                     } else {
                         console.log('CREATE: Update on server');
-                        await this.services[entity.entityType].update(
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            entity,
+                            cloudEntity,
+                            Action.UPDATE_SERVER,
+                            user,
+                        );
+
+                        await this.services[mergedEntity.entityType].update(
                             {
-                                ...entity.payload,
-                                id: cloudEntity.id,
-                                updateDate: entity.updateDate,
-                                createDate: entity.createDate,
+                                ...mergedEntity.payload,
+                                id: mergedEntity.id,
+                                updateDate: mergedEntity.updateDate,
+                                createDate: mergedEntity.createDate,
                             },
                             user,
                             stage,
                         );
                         mergeResult.pair.push({
                             localId: entity.tempId,
-                            cloudId: cloudEntity.id,
-                            entityType: entity.entityType,
+                            cloudId: mergedEntity.id,
+                            entityType: mergedEntity.entityType,
                         });
                     }
                 } else {
                     console.log('CREATE: Create on server');
-                    cloudEntity = await this.services[entity.entityType].create(
+
+                    const mergedEntity = await this.services[entity.entityType].merge(
+                        entity,
+                        cloudEntity,
+                        Action.CREATE_SERVER,
+                        user,
+                    );
+
+                    cloudEntity = await this.services[mergedEntity.entityType].create(
                         {
-                            ...entity.payload,
-                            updateDate: entity.updateDate,
-                            createDate: entity.createDate,
+                            ...mergedEntity.payload,
+                            updateDate: mergedEntity.updateDate,
+                            createDate: mergedEntity.createDate,
                         },
                         user,
                         stage,
                     );
                     mergeResult.pair.push({
                         localId: entity.tempId,
-                        cloudId: cloudEntity.id,
-                        entityType: entity.entityType,
+                        cloudId: mergedEntity.id,
+                        entityType: mergedEntity.entityType,
                     });
                 }
 
@@ -152,17 +170,17 @@ export class SyncService {
                 };
             };
 
-            const folderCloudIdsByLocalIds = await this.foldersService.merge(
+            const folderCloudIdsByLocalIds = await this.foldersService.processSequentially(
                 pushRequest.create.filter((entity) => entity.entityType === 'folder'),
                 mergeEntity,
             );
 
-            const tagCloudIdsByLocalIds = await this.tagsService.merge(
+            const tagCloudIdsByLocalIds = await this.tagsService.processSequentially(
                 pushRequest.create.filter((entity) => entity.entityType === 'tag'),
                 mergeEntity,
             );
 
-            /* const bookmarksCloudIdsByLocalIds = */ await this.bookmarksService.merge(
+            /* const bookmarksCloudIdsByLocalIds = */ await this.bookmarksService.processSequentially(
                 pushRequest.create.filter((entity) => entity.entityType === 'bookmark'),
                 mergeEntity,
                 folderCloudIdsByLocalIds,
@@ -171,31 +189,42 @@ export class SyncService {
         }
 
         if (pushRequest.update.length !== 0) {
-            const mergeEntity = async (entity) => {
-                const cloudEntity = await this.services[entity.entityType].exist({ id: entity.id, ...entity.payload }, user);
+            const mergeEntity = async (entity: SyncPairEntity) => {
+                const cloudEntity = await this.services[entity.entityType].exist(
+                    { id: entity.id, ...entity.payload },
+                    user,
+                );
                 const cloudDate = cloudEntity?.updateDate.valueOf();
                 const localDate = entity.updateDate.valueOf();
 
                 if (cloudEntity) {
                     if (cloudDate > localDate) {
                         console.log('UPDATE: Update on client');
-                        mergeResult.update.push({
-                            id: entity.id,
-                            entityType: entity.entityType,
-                            payload: cloudEntity,
-                            updateDate: cloudEntity.updateDate,
-                            createDate: cloudEntity.createDate,
-                            updateCommit: cloudEntity.updateCommit,
-                            createCommit: cloudEntity.createCommit,
-                        });
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            entity,
+                            cloudEntity,
+                            Action.UPDATE_CLIENT,
+                            user,
+                        );
+
+                        mergeResult.update.push(mergedEntity);
                     } else {
                         console.log('UPDATE: Update on server');
-                        await this.services[entity.entityType].update(
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            entity,
+                            cloudEntity,
+                            Action.UPDATE_SERVER,
+                            user,
+                        );
+
+                        await this.services[mergedEntity.entityType].update(
                             {
-                                ...entity.payload,
-                                id: cloudEntity.id,
-                                updateDate: entity.updateDate,
-                                createDate: entity.createDate,
+                                ...mergedEntity.payload,
+                                id: mergedEntity.id,
+                                updateDate: mergedEntity.updateDate,
+                                createDate: mergedEntity.createDate,
                             },
                             user,
                             stage,
@@ -205,25 +234,41 @@ export class SyncService {
                     const historyEntity = await this.historyModel.findOne({
                         userId: user.id,
                         action: HISTORY_ACTION.delete,
-                        entityType: entity.entity,
-                        entityId: entity.cloudId,
+                        entityType: entity.entityType,
+                        entityId: entity.id,
                     });
 
                     if (historyEntity && historyEntity.date.valueOf() > localDate) {
                         console.log('UPDATE: Delete on client');
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            entity,
+                            cloudEntity,
+                            Action.DELETE_CLIENT,
+                            user,
+                        );
+
                         mergeResult.delete.push({
-                            id: entity.id,
-                            entityType: entity.entityType,
+                            id: mergedEntity.id,
+                            entityType: mergedEntity.entityType,
                             deleteDate: historyEntity.date,
                         });
                     } else {
                         console.log('UPDATE: Create on server');
-                        await this.services[entity.entityType].create(
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            entity,
+                            cloudEntity,
+                            Action.CREATE_SERVER,
+                            user,
+                        );
+
+                        await this.services[mergedEntity.entityType].create(
                             {
-                                id: entity.id,
-                                ...entity.payload,
-                                updateDate: entity.updateDate,
-                                createDate: entity.createDate,
+                                id: mergedEntity.id,
+                                ...mergedEntity.payload,
+                                updateDate: mergedEntity.updateDate,
+                                createDate: mergedEntity.createDate,
                             },
                             user,
                             stage,
@@ -243,26 +288,54 @@ export class SyncService {
         }
 
         if (pushRequest.delete.length !== 0) {
-            const mergeEntity = async (entity) => {
-                const cloudEntity = await this.services[entity.entityType].exist({ id: entity.id, ...entity.payload }, user);
+            const mergeEntity = async (entity: DeletePairEntity) => {
+                const cloudEntity = await this.services[entity.entityType].existById(entity.id, user);
                 const cloudDate = cloudEntity?.updateDate.valueOf();
                 const localDate = entity.deleteDate.valueOf();
 
                 if (cloudEntity) {
                     if (cloudDate > localDate) {
                         console.log('DELETE: Create on client');
-                        mergeResult.create.push({
-                            id: cloudEntity.id,
-                            entityType: entity.entityType,
-                            payload: cloudEntity,
-                            updateDate: cloudEntity.updateDate,
-                            createDate: cloudEntity.createDate,
-                            updateCommit: cloudEntity.updateCommit,
-                            createCommit: cloudEntity.createCommit,
-                        });
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            {
+                                tempId: entity.id,
+                                createDate: cloudEntity.createDate,
+                                entityType: entity.entityType,
+                                payload: {},
+                                updateDate: entity.deleteDate,
+                            },
+                            cloudEntity,
+                            Action.CREATE_CLIENT,
+                            user,
+                        );
+
+                        mergeResult.create.push(mergedEntity);
                     } else {
                         console.log('DELETE: Delete on server');
-                        await this.services[entity.entityType].delete(entity, user, stage);
+
+                        const mergedEntity = await this.services[entity.entityType].merge(
+                            {
+                                tempId: entity.id,
+                                createDate: cloudEntity.createDate,
+                                entityType: entity.entityType,
+                                payload: {},
+                                updateDate: entity.deleteDate,
+                            },
+                            cloudEntity,
+                            Action.DELETE_SERVER,
+                            user,
+                        );
+
+                        await this.services[mergedEntity.entityType].delete(
+                            {
+                                id: cloudEntity.id,
+                                deleteDate: entity.deleteDate,
+                                entityType: entity.entityType,
+                            },
+                            user,
+                            stage,
+                        );
                     }
                 }
             };
@@ -315,31 +388,35 @@ export class SyncService {
         return {
             headCommit: serverHeadCommit,
             create: [
-                ...folders.create.map((entity) => ({ ...entity, entityType: 'folder' })),
-                ...bookmarks.create.map((entity) => ({ ...entity, entityType: 'bookmark' })),
-                ...tags.create.map((entity) => ({ ...entity, entityType: 'tag' })),
-            ].map((entity) => ({
-                id: entity.id,
-                entityType: entity.entityType,
-                payload: entity,
-                updateDate: entity.updateDate,
-                createDate: entity.createDate,
-                updateCommit: entity.updateCommit,
-                createCommit: entity.createCommit,
-            })),
+                ...folders.create.map((entity) => ({ entity, type: 'folder' })),
+                ...bookmarks.create.map((entity) => ({ entity, type: 'bookmark' })),
+                ...tags.create.map((entity) => ({ entity, type: 'tag' })),
+            ].map(
+                ({ entity, type }: { entity: any; type: 'folder' | 'bookmark' | 'tag' }): SyncPairEntity => ({
+                    id: entity.id,
+                    entityType: type,
+                    payload: entity,
+                    updateDate: entity.updateDate,
+                    createDate: entity.createDate,
+                    updateCommit: entity.updateCommit,
+                    createCommit: entity.createCommit,
+                }),
+            ),
             update: [
-                ...folders.update.map((entity) => ({ ...entity, entityType: 'folder' })),
-                ...bookmarks.update.map((entity) => ({ ...entity, entityType: 'bookmark' })),
-                ...tags.update.map((entity) => ({ ...entity, entityType: 'tag' })),
-            ].map((entity) => ({
-                id: entity.id,
-                entityType: entity.entityType,
-                payload: entity,
-                updateDate: entity.updateDate,
-                createDate: entity.createDate,
-                updateCommit: entity.updateCommit,
-                createCommit: entity.createCommit,
-            })),
+                ...folders.update.map((entity) => ({ entity, type: 'folder' })),
+                ...bookmarks.update.map((entity) => ({ entity, type: 'bookmark' })),
+                ...tags.update.map((entity) => ({ entity, type: 'tag' })),
+            ].map(
+                ({ entity, type }: { entity: any; type: 'folder' | 'bookmark' | 'tag' }): SyncPairEntity => ({
+                    id: entity.id,
+                    entityType: type,
+                    payload: entity,
+                    updateDate: entity.updateDate,
+                    createDate: entity.createDate,
+                    updateCommit: entity.updateCommit,
+                    createCommit: entity.createCommit,
+                }),
+            ),
             delete: [
                 ...folders.delete.map((entity) => ({ ...entity, entityType: 'folder' })),
                 ...bookmarks.delete.map((entity) => ({ ...entity, entityType: 'bookmark' })),
