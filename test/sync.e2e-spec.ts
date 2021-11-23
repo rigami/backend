@@ -3,10 +3,10 @@ import { Test } from '@nestjs/testing';
 import { SyncModule } from '@/sync/module';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { TypegooseModule } from 'nestjs-typegoose';
-import { AuthModule } from '@/auth/auth/module';
 import { UsersModule } from '@/auth/users/module';
 import { v4 as UUIDv4 } from 'uuid';
 import { DevicesModule } from '@/auth/devices/module';
+import { AuthCommonModule } from '@/auth/module';
 
 const authRequest = (app, user, method, path) =>
     request(app.getHttpServer())
@@ -38,7 +38,7 @@ describe('Sync (e2e)', () => {
                     connectionName: 'sync',
                     useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-sync' }),
                 }),
-                AuthModule,
+                AuthCommonModule,
                 UsersModule,
                 DevicesModule,
                 SyncModule,
@@ -121,7 +121,7 @@ describe('Sync (e2e)', () => {
                         createDate: new Date(testStartTime + 210).toISOString(),
                         updateDate: new Date(testStartTime + 210).toISOString(),
                         payload: {
-                            parentTempId: '00000000-0000-0000-0000-000000000000',
+                            parentId: '00000000-0000-0000-0000-000000000000',
                             name: 'Folder 3',
                         },
                     },
@@ -191,6 +191,7 @@ describe('Sync (e2e)', () => {
             `/v1/sync/pull?fromCommit=${pushResponse2.body.headCommit}`,
         ).expect((res) => (res.status != 200 ? console.error(res.body) : 0));
 
+        console.log('allData status:', pullAllData1.status);
         console.log('allData headCommit:', pullAllData1.body.headCommit);
         console.log('allData create:', pullAllData1.body.create);
         console.log('allData update:', pullAllData1.body.update);

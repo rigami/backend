@@ -13,14 +13,13 @@ import { InjectModel } from 'nestjs-typegoose';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { HISTORY_ACTION, HistorySchema } from '@/sync/schemas/history';
 import { PushResponseEntity } from '@/sync/entities/response.push';
-import { CreatePairEntity, SyncEntity, SyncPairEntity } from '@/sync/entities/sync';
+import { CreatePairEntity, SyncPairEntity } from '@/sync/entities/sync';
 import { PairEntity } from '@/sync/entities/pair';
 import { DeletePairEntity } from '@/sync/entities/delete';
 import { DevicesService } from '@/auth/devices/service';
 import { BookmarksSyncService } from '@/sync/modules/bookmarks/service';
 import { TagsSyncService } from '@/sync/modules/tags/service';
 import { Action } from '@/sync/utils/actions';
-import { SnapshotEntity } from '@/sync/entities/snapshot';
 
 @Injectable()
 export class SyncService {
@@ -92,6 +91,8 @@ export class SyncService {
             const mergeEntity = async (entity: CreatePairEntity) => {
                 let cloudEntity = await this.services[entity.entityType].exist({ id: null, ...entity.payload }, user);
 
+                console.log('cloudEntity:', cloudEntity)
+
                 const cloudDate = cloudEntity?.updateDate.valueOf();
                 const localDate = entity.updateDate.valueOf();
 
@@ -106,6 +107,12 @@ export class SyncService {
                             user,
                         );
 
+
+                        console.log('pair:', {
+                            localId: entity.tempId,
+                            cloudId: mergedEntity.id,
+                            entityType: mergedEntity.entityType,
+                        });
                         mergeResult.pair.push({
                             localId: entity.tempId,
                             cloudId: mergedEntity.id,
@@ -132,6 +139,11 @@ export class SyncService {
                             user,
                             stage,
                         );
+                        console.log('pair:', {
+                            localId: entity.tempId,
+                            cloudId: mergedEntity.id,
+                            entityType: mergedEntity.entityType,
+                        });
                         mergeResult.pair.push({
                             localId: entity.tempId,
                             cloudId: mergedEntity.id,
@@ -139,7 +151,7 @@ export class SyncService {
                         });
                     }
                 } else {
-                    console.log('CREATE: Create on server');
+                    console.log('CREATE: Create on server', entity, cloudEntity);
 
                     const mergedEntity = await this.services[entity.entityType].merge(
                         entity,
@@ -147,6 +159,8 @@ export class SyncService {
                         Action.CREATE_SERVER,
                         user,
                     );
+
+                    console.log("mergedEntity:", mergedEntity)
 
                     cloudEntity = await this.services[mergedEntity.entityType].create(
                         {
@@ -157,9 +171,17 @@ export class SyncService {
                         user,
                         stage,
                     );
+
+                    console.log("cloudEntity:", cloudEntity)
+
+                    console.log('pair:', {
+                        localId: entity.tempId,
+                        cloudId: cloudEntity.id,
+                        entityType: mergedEntity.entityType,
+                    });
                     mergeResult.pair.push({
                         localId: entity.tempId,
-                        cloudId: mergedEntity.id,
+                        cloudId: cloudEntity.id,
                         entityType: mergedEntity.entityType,
                     });
                 }

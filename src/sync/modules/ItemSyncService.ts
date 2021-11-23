@@ -63,7 +63,7 @@ export class ItemSyncService<E, S> implements IItemSyncService<E, S> {
             desiredAction === Action.DELETE_SERVER
         ) {
             return {
-                id: !(clientEntity instanceof CreatePairEntity) ? clientEntity.id : null,
+                id: cloudEntity instanceof SyncPairEntity ? cloudEntity.id : null,
                 entityType: clientEntity.entityType,
                 payload: clientEntity.payload,
                 updateDate: clientEntity.updateDate,
@@ -85,10 +85,13 @@ export class ItemSyncService<E, S> implements IItemSyncService<E, S> {
     }
 
     async existById(searchId: string, user: User): Promise<SyncPairEntity> {
-        const entity = await this.entityModel.findOne({
-            id: searchId,
-            userId: user.id,
-        });
+        const entity = await this.entityModel
+            .findOne({
+                id: searchId,
+                userId: user.id,
+            })
+            .lean()
+            .exec();
 
         return (
             entity && plainToClass(SyncPairEntity, { ...entity, payload: entity }, { excludeExtraneousValues: true })

@@ -34,7 +34,7 @@ export class TagsSyncService extends ItemSyncService<Tag, TagSnapshot> {
         desiredAction: Action,
         user: User,
     ) {
-        if (clientTag.payload.colorKey === cloudTag.payload.colorKey) {
+        if (cloudTag && clientTag.payload.colorKey === cloudTag.payload.colorKey) {
             return super.merge(clientTag, cloudTag, desiredAction, user);
         }
 
@@ -84,22 +84,27 @@ export class TagsSyncService extends ItemSyncService<Tag, TagSnapshot> {
             if (tag) return tag;
         }
 
-        tag = await this.tagModel.findOne({
-            name: searchTag.name,
-            userId: user.id,
-        });
+        tag = await this.tagModel
+            .findOne({
+                name: searchTag.name,
+                userId: user.id,
+            })
+            .lean()
+            .exec();
 
         return tag && plainToClass(SyncPairEntity, { ...tag, payload: tag }, { excludeExtraneousValues: true });
     }
 
     async create(tag: TagSnapshot, user: User, stage: Stage) {
-        const createdTag = await this.tagModel.create({
-            ...tag,
-            lastAction: STATE_ACTION.create,
-            userId: user.id,
-            createCommit: stage.commit,
-            updateCommit: stage.commit,
-        });
+        const createdTag = (
+            await this.tagModel.create({
+                ...tag,
+                lastAction: STATE_ACTION.create,
+                userId: user.id,
+                createCommit: stage.commit,
+                updateCommit: stage.commit,
+            })
+        ).toJSON();
 
         return plainToClass(SyncPairEntity, { ...createdTag, payload: createdTag }, { excludeExtraneousValues: true });
     }
@@ -121,7 +126,7 @@ export class TagsSyncService extends ItemSyncService<Tag, TagSnapshot> {
             },
         );
 
-        const updatedTag = await this.tagModel.findOne({ id: tag.id, userId: user.id });
+        const updatedTag = await this.tagModel.findOne({ id: tag.id, userId: user.id }).lean().exec();
 
         return plainToClass(SyncPairEntity, { ...updatedTag, payload: updatedTag }, { excludeExtraneousValues: true });
     }

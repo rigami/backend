@@ -60,13 +60,14 @@ export class BookmarksSyncService extends ItemSyncService<Bookmark, BookmarkSnap
             if (bookmark) return bookmark;
         }
 
-        if (!bookmark) {
-            bookmark = await this.bookmarkModel.findOne({
+        bookmark = await this.bookmarkModel
+            .findOne({
                 folderId: searchBookmark.folderId,
                 title: searchBookmark.title,
                 userId: user.id,
-            });
-        }
+            })
+            .lean()
+            .exec();
 
         return (
             bookmark &&
@@ -75,13 +76,15 @@ export class BookmarksSyncService extends ItemSyncService<Bookmark, BookmarkSnap
     }
 
     async create(bookmark: BookmarkSnapshot, user: User, stage: Stage): Promise<SyncPairEntity> {
-        const createdBookmark = await this.bookmarkModel.create({
-            ...bookmark,
-            lastAction: STATE_ACTION.create,
-            userId: user.id,
-            createCommit: stage.commit,
-            updateCommit: stage.commit,
-        });
+        const createdBookmark = (
+            await this.bookmarkModel.create({
+                ...bookmark,
+                lastAction: STATE_ACTION.create,
+                userId: user.id,
+                createCommit: stage.commit,
+                updateCommit: stage.commit,
+            })
+        ).toJSON();
 
         return plainToClass(
             SyncPairEntity,
@@ -107,7 +110,7 @@ export class BookmarksSyncService extends ItemSyncService<Bookmark, BookmarkSnap
             },
         );
 
-        const updatedBookmark = await this.bookmarkModel.findOne({ id: bookmark.id, userId: user.id });
+        const updatedBookmark = await this.bookmarkModel.findOne({ id: bookmark.id, userId: user.id }).lean().exec();
 
         return plainToClass(
             SyncPairEntity,

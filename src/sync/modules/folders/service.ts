@@ -70,16 +70,38 @@ export class FoldersSyncService extends ItemSyncService<Folder, FolderSnapshot> 
     async exist(searchFolder: Folder, user: User): Promise<SyncPairEntity> {
         let folder;
 
+        console.log('folder exist check', searchFolder);
+
         if (searchFolder.id) {
+            console.log('search folder exist check by id');
             folder = await this.existById(searchFolder.id, user);
 
             if (folder) return folder;
         }
 
-        folder = await this.folderModel.findOne({
-            name: searchFolder.name,
-            userId: user.id,
-        });
+        if (searchFolder.parentId) {
+            console.log('search folder exist check by parentId and name');
+            folder = await this.folderModel
+                .findOne({
+                    name: searchFolder.name,
+                    parentId: searchFolder.parentId,
+                    userId: user.id,
+                })
+                .lean()
+                .exec();
+        }
+
+        if (!folder) {
+            console.log('search folder exist check by name');
+            folder = await this.folderModel
+                .findOne({
+                    name: searchFolder.name,
+                    userId: user.id,
+                })
+                .lean()
+                .exec();
+        }
+        console.log('find folder exist check', folder);
 
         return (
             folder && plainToClass(SyncPairEntity, { ...folder, payload: folder }, { excludeExtraneousValues: true })
@@ -87,13 +109,15 @@ export class FoldersSyncService extends ItemSyncService<Folder, FolderSnapshot> 
     }
 
     async create(folder: FolderSnapshot, user: User, stage: Stage): Promise<SyncPairEntity> {
-        const createdFolder = await this.folderModel.create({
-            ...folder,
-            lastAction: STATE_ACTION.create,
-            userId: user.id,
-            createCommit: stage.commit,
-            updateCommit: stage.commit,
-        });
+        const createdFolder = (
+            await this.folderModel.create({
+                ...folder,
+                lastAction: STATE_ACTION.create,
+                userId: user.id,
+                createCommit: stage.commit,
+                updateCommit: stage.commit,
+            })
+        ).toJSON();
 
         return plainToClass(
             SyncPairEntity,
@@ -119,7 +143,7 @@ export class FoldersSyncService extends ItemSyncService<Folder, FolderSnapshot> 
             },
         );
 
-        const updatedFolder = await this.folderModel.findOne({ id: folder.id, userId: user.id });
+        const updatedFolder = await this.folderModel.findOne({ id: folder.id, userId: user.id }).lean().exec();
 
         return plainToClass(
             SyncPairEntity,
