@@ -123,6 +123,7 @@ export class AuthService {
 
     async login(loginInfo: LoginInfo) {
         let device = await this.verifyDevice(loginInfo.user, {
+            lastActivityIp: loginInfo.ip,
             userAgent: loginInfo.userAgent,
             type: loginInfo.deviceType,
             token: loginInfo.deviceToken,
@@ -131,6 +132,7 @@ export class AuthService {
         if (!device) {
             this.logger.log(`Not verify device for user.id:${loginInfo.user.id}...`);
             device = await this.signDevice(loginInfo.user, {
+                lastActivityIp: loginInfo.ip,
                 userAgent: loginInfo.userAgent,
                 type: loginInfo.deviceType,
                 token: loginInfo.deviceToken,

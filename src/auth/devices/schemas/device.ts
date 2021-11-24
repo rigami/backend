@@ -27,4 +27,7 @@ export class DeviceSchema {
 
     @Prop({ required: true, default: () => new Date() })
     lastActivityDate?: Date;
+
+    @Prop({ required: true })
+    lastActivityIp: string;
 }

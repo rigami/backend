@@ -3,7 +3,7 @@ import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
 import { CurrentUser } from '@/auth/auth/utils/currentUser.param.decorator';
 import { UsersService } from '@/auth/users/service';
 import { MergeUsersService } from '@/auth/users/merge.service';
-import { Observable } from 'rxjs';
+import { Observable, Subject } from 'rxjs';
 import { MessageEvent } from '@/utils/sse/entities/messageEvent';
 import { v4 as UUIDv4 } from 'uuid';
 import { User } from '@/auth/users/entities/user';
@@ -16,81 +16,95 @@ export class UsersController {
     constructor(private usersService: UsersService, private mergeService: MergeUsersService) {}
 
     @UseGuards(JwtAccessAuthGuard)
-    @Get('merge/request/with-exist-user/apply')
-    async mergeWithExistUser(@CurrentUser() user, @Query() query) {
-        try {
-            await this.mergeService.mergeUsers(user, query.code);
-
-            return {};
-        } catch (e) {
-            throw new BadRequestException(e.message);
-        }
-    }
-
-    @UseGuards(JwtAccessAuthGuard)
-    @Sse('merge/request/exist-user/create')
-    generateMergeCodeByExistUser(@CurrentUser() user, @CurrentDevice() device): Observable<MessageEvent> {
+    @Sse('merge/request/create')
+    async generateMergeCodeByExistUser(
+        @CurrentUser() user,
+        @CurrentDevice() device,
+    ): Promise<Observable<MessageEvent>> {
         console.log('user:', user);
 
-        return this.mergeService.createAndWatchMergeRequest(user, device);
+        return await this.mergeService.createAndWatchMergeRequest(user, device);
     }
 
-    @UseGuards(JwtAccessAuthGuard)
-    @Delete('merge/request/exist-user')
-    async deleteMergeCodeFromExistUser(@CurrentUser() user) {
-        return this.mergeService.deleteMergeRequest(user);
-    }
-
-    @Get('merge/request/create-virtual-user/apply')
-    async createUserAndMerge(@RequestHeaders() headers: Headers, @Ip() ip: string, @Query() query) {
-        try {
-            return await this.mergeService.createAndMergeUsers(
-                {
-                    ip,
-                    userAgent: headers['user-agent'],
-                    deviceType: headers['device-type'],
-                    deviceToken: headers['device-token'],
-                },
-                query.code,
-            );
-        } catch (e) {
-            throw new BadRequestException(e.message);
-        }
-    }
-
-    @Sse('merge/request/with-exist-user/create')
-    generateTempMergeCode(@RequestHeaders() headers: Headers): Observable<MessageEvent> {
+    @Sse('merge/request/no-user/create')
+    async generateMergeCodeByNotExistUser(@RequestHeaders() headers: Headers, @Ip() ip: string): Promise<Observable<MessageEvent>> {
         const tempUser: User = {
             createDate: undefined,
             password: '',
             username: '',
             id: UUIDv4(),
-            isTemp: true,
             isVirtual: true,
+            isTemp: true,
         };
 
         const tempDevice: Device = {
+            lastActivityIp: ip,
             holderUserId: tempUser.id,
             id: headers['device-token'],
             token: headers['device-token'],
             type: headers['device-type'],
             userAgent: headers['user-agent'],
+            isTemp: true,
         };
 
-        return this.mergeService.createAndWatchMergeRequest(tempUser, tempDevice);
+        return await this.mergeService.createAndWatchMergeRequest(tempUser, tempDevice);
     }
 
-    @Delete('merge/request/with-exist-user')
-    async deleteTempMergeCode(@Query() query) {
+    @UseGuards(JwtAccessAuthGuard)
+    @Delete('merge/request')
+    async deleteMergeCodeOfExistUser(@CurrentUser() user) {
+        return this.mergeService.deleteMergeRequest(user);
+    }
+
+    @Delete('merge/request/no-user')
+    async deleteMergeCodeOfNotExistUser(@Query('requestId') requestId: string) {
         const tempUser: User = {
             createDate: undefined,
             password: '',
             username: '',
-            id: query.requestId,
+            id: requestId,
             isTemp: true,
             isVirtual: true,
         };
 
         return this.mergeService.deleteMergeRequest(tempUser);
+    }
+
+    @UseGuards(JwtAccessAuthGuard)
+    @Get('merge/request/apply')
+    async applyMergeByExistUser(@CurrentUser() user, @CurrentDevice() device, @Query() query) {
+        try {
+            return await this.mergeService.mergeUsers(query.code, user, device);
+        } catch (e) {
+            throw new BadRequestException(e.message);
+        }
+    }
+
+    @Get('merge/request/no-user/apply')
+    async applyMergeByNotExistUser(@RequestHeaders() headers: Headers, @Ip() ip: string, @Query() query) {
+        const tempUser: User = {
+            createDate: undefined,
+            password: '',
+            username: '',
+            id: UUIDv4(),
+            isVirtual: true,
+            isTemp: true,
+        };
+
+        const tempDevice: Device = {
+            lastActivityIp: ip,
+            holderUserId: tempUser.id,
+            id: headers['device-token'],
+            token: headers['device-token'],
+            type: headers['device-type'],
+            userAgent: headers['user-agent'],
+            isTemp: true,
+        };
+
+        try {
+            return await this.mergeService.mergeUsers(query.code, tempUser, tempDevice);
+        } catch (e) {
+            throw new BadRequestException(e.message);
+        }
     }
 }

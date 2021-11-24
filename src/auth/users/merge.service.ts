@@ -9,7 +9,6 @@ import { UsersService } from '@/auth/users/service';
 import { DevicesService } from '@/auth/devices/service';
 import { SSEService } from '@/utils/sse/service';
 import { AuthService } from '@/auth/auth/service';
-import { v4 as UUIDv4 } from 'uuid';
 import { Device } from '@/auth/devices/entities/device';
 
 @Injectable()
@@ -44,7 +43,13 @@ export class MergeUsersService {
                 await this.mergeUserRequestModel.updateOne({ mergedUserId: user.id }, { $set: { code, expiredDate } });
 
                 request = await this.mergeUserRequestModel.findOne({ mergedUserId: user.id });
-            } else {
+            } /* if (
+                err.name === 'MongoServerError' &&
+                err.code === 11000 &&
+                'mergedFromDeviceId' in err.keyPattern
+            ) {
+                // erg
+            } else */ else {
                 this.logger.error(err);
                 throw err;
             }
@@ -53,19 +58,25 @@ export class MergeUsersService {
         return { code: request.code };
     }
 
-    createAndWatchMergeRequest(user: User, device: Device) {
-        this.logger.log(`Create merge request by user id:${user.id}...`);
+    async createAndWatchMergeRequest(user: User, device: Device) {
+        this.logger.log(`Create merge request by user id:${user.id} isTemp:${user.isTemp}...`);
+
+        const request = await this.createMergeRequest(user, device);
 
         const queue = this.sseService.createQueue('merge-request', user.id);
 
-        this.createMergeRequest(user, device).then(({ code }) => {
-            if (user.isTemp) {
-                this.sseService.addEvent('merge-request', user.id, {
-                    type: 'code',
-                    data: { code, requestId: user.id },
-                });
-            } else {
-                this.sseService.addEvent('merge-request', user.id, { type: 'code', data: { code } });
+        setTimeout(() => {
+            try {
+                if (user.isTemp) {
+                    this.sseService.addEvent('merge-request', user.id, {
+                        type: 'code',
+                        data: { code: request.code, requestId: user.id },
+                    });
+                } else {
+                    this.sseService.addEvent('merge-request', user.id, { type: 'code', data: { code: request.code } });
+                }
+            } catch (e) {
+                this.sseService.closeQueue('merge-request', user.id);
             }
         });
 
@@ -80,57 +91,77 @@ export class MergeUsersService {
         await this.mergeUserRequestModel.deleteOne({ mergedUserId: user.id });
     }
 
-    async createAndMergeUsers(deviceRegistrationInfo: any, code: string) {
-        const request = await this.mergeUserRequestModel.findOne({ code });
-
-        if (!request || request.expiredDate.valueOf() < Date.now()) {
-            throw new Error('NOT_VALID_CODE');
-        }
-
-        if (request.mergedFromDeviceId === deviceRegistrationInfo.deviceToken) {
-            throw new Error('SAME_DEVICE');
-        }
-
-        const regInfo = await this.authService.registrationVirtual(deviceRegistrationInfo);
-
-        console.log('regInfo:', regInfo);
-
-        const user = await this.usersService.findOne(regInfo.username);
-
-        try {
-            const mergeInfo = await this.mergeUsers(user, code);
-
-            return {
-                ...mergeInfo,
-                regInfo,
-            };
-        } catch (e) {
-            this.logger.warn(`failed merge users. Remove temp virtual user id:${user.id}...`);
-            await this.usersService.findByIdAndDelete(user.id);
-
-            throw e;
-        }
-    }
-
-    async mergeUsers(masterUser: User, code: string) {
+    async mergeUsers(code: string, applyUser: User, deviceApplyUser: Device) {
         const request = await this.mergeUserRequestModel.findOneAndDelete({ code });
 
         if (!request || request.expiredDate.valueOf() < Date.now()) {
             throw new Error('NOT_VALID_CODE');
         }
 
-        const fullMasterUser = await this.usersService.findOneById(masterUser.id);
-        let mergedUser;
+        if (request.mergedFromDeviceId === deviceApplyUser.id) {
+            throw new Error('SAME_DEVICE');
+        }
 
-        if (!request.mergedUserIsTemp) {
-            mergedUser = await this.usersService.findOneById(request.mergedUserId);
+        if (request.mergedUserIsTemp && applyUser.isTemp) {
+            // Create virtual user and login both devices
+
+            const user = await this.usersService.createVirtualUser();
+
+            this.sseService.addEvent('merge-request', request.mergedUserId, {
+                type: 'done-merge',
+                data: {
+                    action: 'login',
+                    newUsername: user.username,
+                    newPassword: user.password,
+                },
+            });
+            return {
+                action: 'login',
+                newUsername: user.username,
+                newPassword: user.password,
+            };
+        } else if (request.mergedUserIsTemp && !applyUser.isTemp) {
+            // Login request user by apply user credentials
+
+            const user = await this.usersService.findOneById(applyUser.id);
+
+            this.sseService.addEvent('merge-request', request.mergedUserId, {
+                type: 'done-merge',
+                data: {
+                    action: 'login',
+                    newUsername: user.username,
+                    newPassword: user.password,
+                },
+            });
+            return { action: 'confirm' };
+        } else if (!request.mergedUserIsTemp && applyUser.isTemp) {
+            // Login apply user by request user credentials
+
+            const user = await this.usersService.findOneById(request.mergedUserId);
+
+            this.sseService.addEvent('merge-request', request.mergedUserId, {
+                type: 'done-merge',
+                data: { action: 'confirm' },
+            });
+            return {
+                action: 'login',
+                newUsername: user.username,
+                newPassword: user.password,
+            };
+        } else {
+            // Merge request user to apply user and login request user by apply user credentials
+
+            if (applyUser.id === request.mergedUserId) {
+                throw new Error('SAME_USER');
+            }
+
+            const masterUser = await this.usersService.findOneById(applyUser.id);
+            const mergedUser = await this.usersService.findOneById(request.mergedUserId);
 
             if (!mergedUser) {
                 throw new Error('NOT_EXIST_MERGED_USER');
             }
-            if (mergedUser.id === masterUser.id) {
-                throw new Error('SAME_USER');
-            }
+
             this.logger.log(`Start merge request user id:${mergedUser.id} into user id:${masterUser.id}...`);
 
             // TODO Merge mergedUser into masterUser
@@ -141,36 +172,18 @@ export class MergeUsersService {
 
             await this.usersService.findByIdAndDelete(request.mergedUserId);
             this.logger.log(`Remove user id:${mergedUser.id}...`);
-        } else {
-            if (request.mergedUserId === masterUser.id) {
-                throw new Error('SAME_USER');
-            }
 
-            if (masterUser.isTemp) {
-            }
+            this.sseService.addEvent('merge-request', request.mergedUserId, {
+                type: 'done-merge',
+                data: {
+                    action: 'login',
+                    newUsername: masterUser.username,
+                    newPassword: masterUser.password,
+                },
+            });
 
-            mergedUser = {
-                createDate: undefined,
-                password: '',
-                username: '',
-                id: request.mergedUserId,
-                isTemp: true,
-                isVirtual: true,
-            };
+            return { action: 'confirm' };
         }
-
-        this.sseService.addEvent('merge-request', request.mergedUserId, {
-            type: 'done-merge',
-            data: {
-                newUsername: fullMasterUser.username,
-                newPassword: fullMasterUser.password,
-            },
-        });
-
-        return {
-            master: fullMasterUser,
-            merged: mergedUser,
-        };
     }
 
     @Interval(60 * 1000) // Clear cache every 1m

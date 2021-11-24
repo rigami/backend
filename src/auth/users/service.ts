@@ -67,7 +67,7 @@ export class UsersService {
 
         const user = await this.userModel.create({
             username: UUIDv4(),
-            password: '',
+            password: UUIDv4(),
             isVirtual: true,
         });
 

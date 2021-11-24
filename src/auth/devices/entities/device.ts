@@ -1,4 +1,4 @@
-import { IsDate, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
+import { IsBoolean, IsDate, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { User } from '@/auth/users/entities/user';
 import { Expose, Type } from 'class-transformer';
 
@@ -42,6 +42,11 @@ export class Device {
     readonly createDate?: Date;
 
     @Expose()
+    @IsString()
+    @IsOptional()
+    readonly lastActivityIp?: string;
+
+    @Expose()
     @IsDate()
     @IsOptional()
     readonly lastActivityDate?: Date;
@@ -50,4 +55,8 @@ export class Device {
     @Type(() => User)
     @IsOptional()
     readonly owner?: User;
+
+    @IsBoolean()
+    @IsOptional()
+    readonly isTemp?: boolean = false;
 }

@@ -29,6 +29,8 @@ export class DevicesService {
             token: device.token,
             deviceSign: device.deviceSign,
             createDate: device.createDate,
+            lastActivityDate: device.lastActivityDate,
+            lastActivityIp: device.lastActivityIp,
         };
     }
 
@@ -45,6 +47,8 @@ export class DevicesService {
             token: device.token,
             deviceSign: device.deviceSign,
             createDate: device.createDate,
+            lastActivityDate: device.lastActivityDate,
+            lastActivityIp: device.lastActivityIp,
         };
     }
 
@@ -94,6 +98,8 @@ export class DevicesService {
             token: device.token,
             deviceSign: createdDevice.deviceSign,
             createDate: createdDevice.createDate,
+            lastActivityDate: device.lastActivityDate,
+            lastActivityIp: device.lastActivityIp,
         };
     }
 }
