@@ -40,9 +40,7 @@ export class SiteParseController {
 
                 if (imageFromCache) {
                     return {
-                        url: `http://localhost:8080/site-parse/processing-image?url=${encodeURIComponent(
-                            imageFromCache.baseUrl,
-                        )}`,
+                        url: `/site-parse/processing-image?url=${encodeURIComponent(imageFromCache.baseUrl)}`,
                         baseUrl: imageFromCache.baseUrl,
                         width: imageFromCache.width,
                         height: imageFromCache.height,
@@ -66,7 +64,7 @@ export class SiteParseController {
         return { ...site, images: finalImages };
     }
 
-    @UseGuards(JwtAccessAuthGuard)
+    // @UseGuards(JwtAccessAuthGuard)
     @Get('processing-image')
     async processingImage(@Query() query, @Res() response): Promise<void> {
         this.logger.log(`Processing image by url: '${query.url}'`);

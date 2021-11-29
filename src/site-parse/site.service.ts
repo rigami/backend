@@ -9,6 +9,7 @@ import { InjectModel } from 'nestjs-typegoose';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { Interval } from '@nestjs/schedule';
 import { SiteImageSchema } from './schemas/siteImage';
+import { startsWith } from 'lodash';
 
 function getAttr(node, attrName) {
     return node.attributes.getNamedItem(attrName)?.textContent;
@@ -38,6 +39,8 @@ export class SiteParseService {
         } catch (e) {
             throw new Error(`The site is not available (${e.message})`);
         }
+
+        const rootUrl = `${request.protocol}//${request.host}`;
 
         try {
             const document: Document = new JSDOM(rawData).window.document;
@@ -113,6 +116,10 @@ export class SiteParseService {
                         return null;
                     }
 
+                    if (!startsWith(image.baseUrl, 'http')) {
+                        image.baseUrl = `${rootUrl}${image.baseUrl}`;
+                    }
+
                     return image;
                 })
                 .sort((imageA, imageB) => {
@@ -126,14 +133,14 @@ export class SiteParseService {
                 })
                 .map((image) => ({
                     ...image,
-                    url: `http://localhost:8080/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}`,
+                    url: `/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}`,
                 }));
 
             return {
                 url,
                 protocol: request.protocol,
                 host: request.host,
-                rootUrl: `${request.protocol}//${request.host}`,
+                rootUrl,
                 title,
                 description,
                 images,
@@ -179,9 +186,7 @@ export class SiteParseService {
                 description: site.description,
                 images: site.images.map(
                     (image): SiteImage => ({
-                        url: `http://localhost:8080/site-parse/processing-image?url=${encodeURIComponent(
-                            image.baseUrl,
-                        )}`,
+                        url: `/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}`,
                         baseUrl: image.baseUrl,
                         width: image.width,
                         height: image.height,
