@@ -7,20 +7,40 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AppController } from './controller';
 import { DevicesModule } from '@/auth/devices/module';
 import { SyncModule } from '@/sync/module';
+import configuration from '@/config/configuration';
+import { ConfigModule } from '@nestjs/config';
+
+const MONGO_URI = `mongodb://${process.env.DATABASE_HOST || '127.0.0.1'}:27017`;
 
 @Module({
     imports: [
+        ConfigModule.forRoot({
+            isGlobal: true,
+            load: [configuration],
+        }),
         TypegooseModule.forRootAsync({
             connectionName: 'cache',
-            useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-cache' }),
+            useFactory: async () => ({
+                uri: `${MONGO_URI}/rigami-cache`,
+                authSource: 'admin',
+                auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
+            }),
         }),
         TypegooseModule.forRootAsync({
             connectionName: 'main',
-            useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-main' }),
+            useFactory: async () => ({
+                uri: `${MONGO_URI}/rigami-main`,
+                authSource: 'admin',
+                auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
+            }),
         }),
         TypegooseModule.forRootAsync({
             connectionName: 'sync',
-            useFactory: async () => ({ uri: 'mongodb://127.0.0.1:27017/rigami-sync' }),
+            useFactory: async () => ({
+                uri: `${MONGO_URI}/rigami-sync`,
+                authSource: 'admin',
+                auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
+            }),
         }),
         AuthCommonModule,
         UsersModule,

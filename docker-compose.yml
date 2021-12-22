@@ -1,0 +1,25 @@
+version: "3.3"
+networks:
+  web:
+    external: true
+services:
+  experimental-backend:
+    build: .
+    restart: unless-stopped
+    environment:
+      - DATABASE_USER
+      - DATABASE_PASSWORD
+      - DATABASE_HOST
+    extra_hosts:
+      - "database:151.248.112.166"
+    networks:
+      - web
+    volumes:
+      - ./icons-cache/:/icons-cache/
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.experimental-backend.rule=Host(`api.rigami.io/v1`)"
+      - "traefik.http.routers.experimental-backend.entrypoints=web-http,web-https"
+      - "traefik.http.routers.experimental-backend.tls=true"
+      - "traefik.http.routers.experimental-backend.tls.certresolver=letsEncrypt"
+      - "traefik.http.services.experimental-backend-service.loadbalancer.server.port=8080"
