@@ -17,8 +17,8 @@ RUN yarn install
 COPY . .
 
 # Build the project and copy the files
-# RUN yarn build
+RUN yarn build
 
 EXPOSE 8080
 
-ENTRYPOINT ["yarn", "dev"]
+ENTRYPOINT ["yarn", "start:prod"]
