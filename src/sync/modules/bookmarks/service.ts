@@ -195,8 +195,12 @@ export class BookmarksSyncService extends ItemSyncService<Bookmark, BookmarkSnap
             update: updateBookmarks.map((bookmark) =>
                 plainToClass(BookmarkSnapshot, bookmark, { excludeExtraneousValues: true }),
             ),
-            delete: deletedBookmarks.map((bookmark) =>
-                plainToClass(DeleteEntity, bookmark, { excludeExtraneousValues: true }),
+            delete: deletedBookmarks.map((deletedEntity) =>
+                plainToClass(
+                    DeleteEntity,
+                    { ...deletedEntity, id: deletedEntity.entityId },
+                    { excludeExtraneousValues: true },
+                ),
             ),
         };
     }

@@ -203,7 +203,13 @@ export class TagsSyncService extends ItemSyncService<Tag, TagSnapshot> {
         return {
             create: createTags.map((tag) => plainToClass(TagSnapshot, tag, { excludeExtraneousValues: true })),
             update: updateTags.map((tag) => plainToClass(TagSnapshot, tag, { excludeExtraneousValues: true })),
-            delete: deletedTags.map((tag) => plainToClass(DeleteEntity, tag, { excludeExtraneousValues: true })),
+            delete: deletedTags.map((deletedEntity) =>
+                plainToClass(
+                    DeleteEntity,
+                    { ...deletedEntity, id: deletedEntity.entityId },
+                    { excludeExtraneousValues: true },
+                ),
+            ),
         };
     }
 }
