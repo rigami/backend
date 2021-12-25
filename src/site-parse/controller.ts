@@ -15,7 +15,7 @@ export class SiteParseController {
         private readonly iconsProcessingService: IconsProcessingService,
     ) {}
 
-    @UseGuards(JwtAccessAuthGuard)
+    // @UseGuards(JwtAccessAuthGuard)
     @Get('get-meta')
     async getMeta(@Query() query): Promise<Site> {
         this.logger.log(`Start parse site '${query.url}'...`);
