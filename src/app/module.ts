@@ -11,6 +11,13 @@ import configuration from '@/config/configuration';
 import { ConfigModule } from '@nestjs/config';
 
 const MONGO_URI = `mongodb://${process.env.DATABASE_HOST || '127.0.0.1'}:27017`;
+const MONGO_AUTH =
+    process.env.DATABASE_USER && process.env.DATABASE_PASSWORD
+        ? {
+              authSource: 'admin',
+              auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
+          }
+        : {};
 
 @Module({
     imports: [
@@ -22,24 +29,21 @@ const MONGO_URI = `mongodb://${process.env.DATABASE_HOST || '127.0.0.1'}:27017`;
             connectionName: 'cache',
             useFactory: async () => ({
                 uri: `${MONGO_URI}/rigami-cache`,
-                authSource: 'admin',
-                auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
+                ...MONGO_AUTH,
             }),
         }),
         TypegooseModule.forRootAsync({
             connectionName: 'main',
             useFactory: async () => ({
                 uri: `${MONGO_URI}/rigami-main`,
-                authSource: 'admin',
-                auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
+                ...MONGO_AUTH,
             }),
         }),
         TypegooseModule.forRootAsync({
             connectionName: 'sync',
             useFactory: async () => ({
                 uri: `${MONGO_URI}/rigami-sync`,
-                authSource: 'admin',
-                auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
+                ...MONGO_AUTH,
             }),
         }),
         AuthCommonModule,
