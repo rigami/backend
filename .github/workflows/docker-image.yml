@@ -1,0 +1,21 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches:
+    - master
+  workflow_dispatch:
+    
+env:
+  DATABASE_USER: rigami
+  DATABASE_PASSWORD: password # TODO: ${{ secrets.GKE_PROJECT }}
+  DATABASE_HOST: 127.0.0.1
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Build docker
+      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)  
