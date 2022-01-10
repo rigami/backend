@@ -8,6 +8,7 @@ import { TagsSyncModule } from '@/sync/modules/tags/module';
 import { TypegooseModule } from 'nestjs-typegoose';
 import { HistorySchema } from '@/sync/schemas/history';
 import { DevicesModule } from '@/auth/devices/module';
+import { FavoritesSyncModule } from '@/sync/modules/favorites/module';
 
 @Module({
     imports: [
@@ -17,6 +18,7 @@ import { DevicesModule } from '@/auth/devices/module';
         BookmarksSyncModule,
         FoldersSyncModule,
         TagsSyncModule,
+        FavoritesSyncModule,
     ],
     controllers: [SyncController],
     providers: [SyncService],

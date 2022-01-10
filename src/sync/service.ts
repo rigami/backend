@@ -20,11 +20,17 @@ import { DevicesService } from '@/auth/devices/service';
 import { BookmarksSyncService } from '@/sync/modules/bookmarks/service';
 import { TagsSyncService } from '@/sync/modules/tags/service';
 import { Action } from '@/sync/utils/actions';
+import { FavoritesSyncService } from '@/sync/modules/favorites/service';
 
 @Injectable()
 export class SyncService {
     private readonly logger = new Logger(SyncService.name);
-    private services: { folder: FoldersSyncService; bookmark: BookmarksSyncService; tag: TagsSyncService };
+    private services: {
+        folder: FoldersSyncService;
+        bookmark: BookmarksSyncService;
+        tag: TagsSyncService;
+        favorite: FavoritesSyncService;
+    };
 
     constructor(
         private devicesService: DevicesService,
@@ -32,6 +38,7 @@ export class SyncService {
         private foldersService: FoldersSyncService,
         private bookmarksService: BookmarksSyncService,
         private tagsService: TagsSyncService,
+        private favoritesService: FavoritesSyncService,
         @InjectModel(HistorySchema)
         private readonly historyModel: ReturnModelType<typeof HistorySchema>,
     ) {
@@ -39,6 +46,7 @@ export class SyncService {
             folder: this.foldersService,
             bookmark: this.bookmarksService,
             tag: this.tagsService,
+            favorite: this.favoritesService,
         };
     }
 
@@ -91,7 +99,7 @@ export class SyncService {
             const mergeEntity = async (entity: CreatePairEntity) => {
                 let cloudEntity = await this.services[entity.entityType].exist({ id: null, ...entity.payload }, user);
 
-                console.log('cloudEntity:', cloudEntity)
+                console.log('cloudEntity:', cloudEntity);
 
                 const cloudDate = cloudEntity?.updateDate.valueOf();
                 const localDate = entity.updateDate.valueOf();
@@ -106,7 +114,6 @@ export class SyncService {
                             Action.UPDATE_CLIENT,
                             user,
                         );
-
 
                         console.log('pair:', {
                             localId: entity.tempId,
@@ -160,7 +167,7 @@ export class SyncService {
                         user,
                     );
 
-                    console.log("mergedEntity:", mergedEntity)
+                    console.log('mergedEntity:', mergedEntity);
 
                     cloudEntity = await this.services[mergedEntity.entityType].create(
                         {
@@ -172,7 +179,7 @@ export class SyncService {
                         stage,
                     );
 
-                    console.log("cloudEntity:", cloudEntity)
+                    console.log('cloudEntity:', cloudEntity);
 
                     console.log('pair:', {
                         localId: entity.tempId,
@@ -202,11 +209,19 @@ export class SyncService {
                 mergeEntity,
             );
 
-            /* const bookmarksCloudIdsByLocalIds = */ await this.bookmarksService.processSequentially(
+            const bookmarksCloudIdsByLocalIds = await this.bookmarksService.processSequentially(
                 pushRequest.create.filter((entity) => entity.entityType === 'bookmark'),
                 mergeEntity,
                 folderCloudIdsByLocalIds,
                 tagCloudIdsByLocalIds,
+            );
+
+            await this.favoritesService.processSequentially(
+                pushRequest.create.filter((entity) => entity.entityType === 'favorite'),
+                mergeEntity,
+                folderCloudIdsByLocalIds,
+                tagCloudIdsByLocalIds,
+                bookmarksCloudIdsByLocalIds,
             );
         }
 
@@ -406,6 +421,7 @@ export class SyncService {
         const folders = await this.foldersService.get(fromRawCommit, toRawCommit, user);
         const bookmarks = await this.bookmarksService.get(fromRawCommit, toRawCommit, user);
         const tags = await this.tagsService.get(fromRawCommit, toRawCommit, user);
+        const favorites = await this.favoritesService.get(fromRawCommit, toRawCommit, user);
 
         return {
             headCommit: serverHeadCommit,
@@ -413,8 +429,15 @@ export class SyncService {
                 ...folders.create.map((entity) => ({ entity, type: 'folder' })),
                 ...bookmarks.create.map((entity) => ({ entity, type: 'bookmark' })),
                 ...tags.create.map((entity) => ({ entity, type: 'tag' })),
+                ...favorites.create.map((entity) => ({ entity, type: 'favorite' })),
             ].map(
-                ({ entity, type }: { entity: any; type: 'folder' | 'bookmark' | 'tag' }): SyncPairEntity => ({
+                ({
+                    entity,
+                    type,
+                }: {
+                    entity: any;
+                    type: 'folder' | 'bookmark' | 'tag' | 'favorite';
+                }): SyncPairEntity => ({
                     id: entity.id,
                     entityType: type,
                     payload: entity,
@@ -428,8 +451,15 @@ export class SyncService {
                 ...folders.update.map((entity) => ({ entity, type: 'folder' })),
                 ...bookmarks.update.map((entity) => ({ entity, type: 'bookmark' })),
                 ...tags.update.map((entity) => ({ entity, type: 'tag' })),
+                ...favorites.update.map((entity) => ({ entity, type: 'favorite' })),
             ].map(
-                ({ entity, type }: { entity: any; type: 'folder' | 'bookmark' | 'tag' }): SyncPairEntity => ({
+                ({
+                    entity,
+                    type,
+                }: {
+                    entity: any;
+                    type: 'folder' | 'bookmark' | 'tag' | 'favorite';
+                }): SyncPairEntity => ({
                     id: entity.id,
                     entityType: type,
                     payload: entity,
@@ -443,6 +473,7 @@ export class SyncService {
                 ...folders.delete.map((entity) => ({ ...entity, entityType: 'folder' })),
                 ...bookmarks.delete.map((entity) => ({ ...entity, entityType: 'bookmark' })),
                 ...tags.delete.map((entity) => ({ ...entity, entityType: 'tag' })),
+                ...favorites.delete.map((entity) => ({ ...entity, entityType: 'favorite' })),
             ],
         };
     }

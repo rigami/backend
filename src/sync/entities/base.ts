@@ -4,5 +4,5 @@ import { IsString } from 'class-validator';
 export class BaseSyncEntity {
     @Expose()
     @IsString()
-    readonly entityType: 'folder' | 'tag' | 'bookmark';
+    readonly entityType: 'folder' | 'tag' | 'bookmark' | 'favorite';
 }
