@@ -9,6 +9,7 @@ import { DevicesModule } from '@/auth/devices/module';
 import { SyncModule } from '@/sync/module';
 import configuration from '@/config/configuration';
 import { ConfigModule } from '@nestjs/config';
+import { WallpapersModule } from '@/wallpapers/module';
 
 const MONGO_URI = `mongodb://${process.env.DATABASE_HOST || '127.0.0.1'}:27017`;
 const MONGO_AUTH =
@@ -46,11 +47,19 @@ const MONGO_AUTH =
                 ...MONGO_AUTH,
             }),
         }),
+        TypegooseModule.forRootAsync({
+            connectionName: 'wallpapers',
+            useFactory: async () => ({
+                uri: `${MONGO_URI}/rigami-wallpapers`,
+                ...MONGO_AUTH,
+            }),
+        }),
         AuthCommonModule,
         UsersModule,
         DevicesModule,
         SiteParseModule,
         SyncModule,
+        WallpapersModule,
         ScheduleModule.forRoot(),
     ],
     controllers: [AppController],
