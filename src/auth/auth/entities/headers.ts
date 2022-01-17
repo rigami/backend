@@ -1,4 +1,4 @@
-import { IsEnum, IsUUID } from 'class-validator';
+import { IsEnum, IsString, IsUUID } from 'class-validator';
 import { Transform } from 'class-transformer';
 import { DEVICE_TYPE } from '@/auth/devices/entities/device';
 
@@ -7,6 +7,9 @@ export class AppHeaders {
     @IsEnum(DEVICE_TYPE)
     'device-type': string;
 
-    @IsUUID()
-    'device-token': string;
+    @IsString()
+    'device-sign': string;
+
+    @IsString()
+    'device-platform': string;
 }

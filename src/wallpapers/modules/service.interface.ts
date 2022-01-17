@@ -5,5 +5,6 @@ export interface IWallpapersService {
     search(query: string, count: number): Promise<Wallpaper[]>;
     getRandom(query: string, count: number): Promise<Wallpaper[]>;
     getRandomByCollection(collection: string, count: number): Promise<Wallpaper[]>;
+    getById(id: string): Promise<Wallpaper>;
     markDownload(wallpaper: LiteWallpaper): void;
 }

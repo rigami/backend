@@ -81,6 +81,12 @@ export class PexelsService implements IWallpapersService {
         return Promise.resolve([]);
     }
 
+    async getById(id: string): Promise<Wallpaper> {
+        const response = await this.getData(`/videos/videos/id=${id}`);
+
+        return PexelsService.rawToEntity(response);
+    }
+
     async search(query: string, count: number): Promise<Wallpaper[]> {
         const response = await this.getData(
             query != '' ? `/videos/search?query=${query}&per_page=${count}` : `/videos/popular?per_page=${count}`,

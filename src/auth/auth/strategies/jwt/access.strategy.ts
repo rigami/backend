@@ -22,10 +22,10 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
             throw new UnauthorizedException();
         }
 
-        const user = await this.userService.findOneById(payload.sub);
-        const device = await this.deviceService.findOneById(payload.deviceSub);
+        const user = await this.userService.findById(payload.sub);
+        const device = await this.deviceService.findById(payload.deviceSub);
 
-        if (!user || !device || device.holderUserId !== user.id || request.headers['device-token'] !== device.token) {
+        if (!user || !device || device.holderUserId !== user.id) {
             throw new UnauthorizedException();
         }
 
@@ -33,12 +33,13 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
             user: {
                 id: user.id,
                 username: user.username,
-                isVirtual: user.isVirtual,
+                role: user.role,
             },
             device: {
                 id: device.id,
                 userAgent: device.userAgent,
                 type: device.type,
+                platform: device.platform,
             },
         };
     }

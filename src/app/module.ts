@@ -10,6 +10,7 @@ import { SyncModule } from '@/sync/module';
 import configuration from '@/config/configuration';
 import { ConfigModule } from '@nestjs/config';
 import { WallpapersModule } from '@/wallpapers/module';
+import { ConsoleModule } from '@/console/module';
 
 const MONGO_URI = `mongodb://${process.env.DATABASE_HOST || '127.0.0.1'}:27017`;
 const MONGO_AUTH =
@@ -60,6 +61,7 @@ const MONGO_AUTH =
         SiteParseModule,
         SyncModule,
         WallpapersModule,
+        ConsoleModule,
         ScheduleModule.forRoot(),
     ],
     controllers: [AppController],

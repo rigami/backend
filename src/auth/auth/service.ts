@@ -1,10 +1,10 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { UsersService } from '@/auth/users/service';
 import { JwtService } from '@nestjs/jwt';
-import { RegistrationInfo } from '@/auth/auth/entities/registrationInfo';
 import { DevicesService } from '@/auth/devices/service';
-import { Device } from '@/auth/devices/entities/device';
-import { User } from '@/auth/users/entities/user';
+import { Device, DEVICE_TYPE } from '@/auth/devices/entities/device';
+import { ROLE, User } from '@/auth/users/entities/user';
+import { RegistrationInfo } from '@/auth/auth/entities/registrationInfo';
 import { LoginInfo } from '@/auth/auth/entities/loginInfo';
 
 @Injectable()
@@ -17,72 +17,7 @@ export class AuthService {
         private jwtService: JwtService,
     ) {}
 
-    async validateUser(username: string, password: string): Promise<User> {
-        const user = await this.usersService.findOne(username);
-
-        if (user && user.isVirtual) {
-            const { password, ...result } = user;
-            return result;
-        }
-
-        if (user && !user.isVirtual && user.password === password) {
-            const { password, ...result } = user;
-            return result;
-        }
-        return null;
-    }
-
-    async registration(registrationInfo: RegistrationInfo) {
-        try {
-            const user = await this.usersService.createUser(registrationInfo.username, registrationInfo.password);
-
-            const loginInfo = await this.login({
-                user,
-                ...registrationInfo,
-            });
-
-            return {
-                username: user.username,
-                deviceToken: registrationInfo.deviceToken,
-                ...loginInfo,
-            };
-        } catch (e) {
-            throw new BadRequestException(e.message);
-        }
-    }
-
-    async registrationVirtual(deviceRegistrationInfo: any) {
-        try {
-            const user = await this.usersService.createVirtualUser();
-
-            const loginInfo = await this.login({
-                user,
-                ...deviceRegistrationInfo,
-            });
-
-            return {
-                username: user.username,
-                deviceToken: deviceRegistrationInfo.deviceToken,
-                ...loginInfo,
-            };
-        } catch (e) {
-            throw new BadRequestException(e.message);
-        }
-    }
-
-    async verifyDevice(user: User, device: Device) {
-        this.logger.log(`Verify device for user.id:${user.id}...`);
-
-        if (!user) {
-            this.logger.warn(`Not exist user.id:${user.id}. It is not possible to verify the device`);
-
-            throw new BadRequestException(`Not exist user.id:${user.id}`);
-        }
-
-        return await this.devicesService.findOneByTokenAndUser(device.token, user.id);
-    }
-
-    async signDevice(user: User, device: Device) {
+    async signDevice(userAgent: string, ip: string, type: DEVICE_TYPE, platform: string, user: User) {
         this.logger.log(`Sign device for user.id:${user.id}...`);
 
         if (!user) {
@@ -91,7 +26,60 @@ export class AuthService {
             throw new BadRequestException(`Not exist user.id:${user.id}`);
         }
 
-        return await this.devicesService.createDevice(user, device);
+        return await this.devicesService.create(userAgent, ip, type, platform, user);
+    }
+
+    async signDeviceWithoutUser(userAgent: string, ip: string, type: DEVICE_TYPE, platform: string) {
+        this.logger.log(`Create virtual user and sign device...`);
+
+        const user = await this.usersService.createVirtual();
+
+        const device = await this.devicesService.create(userAgent, ip, type, platform, user);
+
+        return {
+            user,
+            device,
+        };
+    }
+
+    async registrationUser(registrationInfo: RegistrationInfo) {
+        return await this.usersService.create(registrationInfo.username, registrationInfo.password, ROLE.user);
+    }
+
+    async login(loginInfo: LoginInfo) {
+        const device = await this.devicesService.findBySign(loginInfo.deviceSign);
+
+        if (!device || device.holderUserId !== loginInfo.user.id) {
+            throw new Error(`Not signed device for user.id:${loginInfo.user.id}`);
+        }
+
+        const accessToken = await this.getAccessToken(loginInfo.user, device);
+
+        const payload = {
+            tokenType: 'refreshToken',
+            sub: loginInfo.user.id,
+            username: loginInfo.user.username,
+            deviceSub: device.id,
+        };
+
+        return {
+            accessToken,
+            refreshToken: this.jwtService.sign(payload, { expiresIn: '30d' }),
+        };
+    }
+
+    async verifyDevice(sign: string, user: User) {
+        this.logger.log(`Verify device for user.id:${user.id}...`);
+
+        if (!user) {
+            this.logger.warn(`Not exist user.id:${user.id}. It is not possible to verify the device`);
+
+            throw new BadRequestException(`Not exist user.id:${user.id}`);
+        }
+
+        const device = await this.devicesService.findBySign(sign);
+
+        return device && device.holderUserId === user.id;
     }
 
     async getAccessToken(user: User, device: Device) {
@@ -99,12 +87,25 @@ export class AuthService {
 
         const payload = {
             tokenType: 'accessToken',
-            sub: user.id,
             username: user.username,
+            sub: user.id,
             deviceSub: device.id,
         };
 
-        return { accessToken: this.jwtService.sign(payload, { expiresIn: '10m' }) };
+        return this.jwtService.sign(payload, { expiresIn: '10m' });
+    }
+
+    async getAuthToken(user: User, device: Device) {
+        this.logger.log(`Get auth token for user.id:${user.id} device.id:${device.id}...`);
+
+        const payload = {
+            tokenType: 'authToken',
+            username: user.username,
+            sub: user.id,
+            deviceSub: device.id,
+        };
+
+        return this.jwtService.sign(payload, {});
     }
 
     async checkIsExpired(jwtToken: string) {
@@ -121,35 +122,14 @@ export class AuthService {
         }
     }
 
-    async login(loginInfo: LoginInfo) {
-        let device = await this.verifyDevice(loginInfo.user, {
-            lastActivityIp: loginInfo.ip,
-            userAgent: loginInfo.userAgent,
-            type: loginInfo.deviceType,
-            token: loginInfo.deviceToken,
-        });
+    async validateUser(username: string, password: string): Promise<User> {
+        const user = await this.usersService.findByUsername(username);
 
-        if (!device) {
-            this.logger.log(`Not verify device for user.id:${loginInfo.user.id}...`);
-            device = await this.signDevice(loginInfo.user, {
-                lastActivityIp: loginInfo.ip,
-                userAgent: loginInfo.userAgent,
-                type: loginInfo.deviceType,
-                token: loginInfo.deviceToken,
-            });
+        if (user && user.role !== ROLE.virtual_user && user.password === password) {
+            const { password, ...result } = user;
+            return result;
         }
 
-        const accessToken = await this.getAccessToken(loginInfo.user, device);
-
-        const payload = {
-            tokenType: 'refreshToken',
-            sub: loginInfo.user.id,
-            username: loginInfo.user.username,
-            deviceSub: device.id,
-        };
-        return {
-            ...accessToken,
-            refreshToken: this.jwtService.sign(payload, loginInfo.user.isVirtual ? {} : { expiresIn: '30d' }),
-        };
+        return null;
     }
 }

@@ -92,6 +92,12 @@ export class PixabayService implements IWallpapersService {
         return Promise.resolve([]);
     }
 
+    async getById(id: string): Promise<Wallpaper> {
+        const response = await this.getData(`/videos?id=${id}`);
+
+        return PixabayService.rawToEntity(response);
+    }
+
     async search(query: string, count: number): Promise<Wallpaper[]> {
         const response = await this.getData(`/videos?q=${query}&per_page=${Math.max(3, Math.min(200, count))}`);
 

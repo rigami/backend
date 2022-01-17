@@ -19,7 +19,6 @@ export class WallpapersController {
         @Query('query') query: string,
         // @CurUser() user: User,
     ) {
-        console.log('typeWallpaper:', typeWallpaper);
         return await this.wallpapersService.search(query, 12, typeWallpaper);
     }
 
