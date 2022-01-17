@@ -1,10 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { User } from './entities/user';
+import { ROLE, User } from './entities/user';
 import { InjectModel } from 'nestjs-typegoose';
 import { UserSchema } from './schemas/user';
 import { ReturnModelType } from '@typegoose/typegoose';
-import { v4 as UUIDv4 } from 'uuid';
 import { DevicesService } from '@/auth/devices/service';
+import { v4 as UUIDv4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
@@ -16,7 +16,7 @@ export class UsersService {
         private devicesService: DevicesService,
     ) {}
 
-    async findOneById(userId: string): Promise<User | null> {
+    async findById(userId: string): Promise<User | null> {
         const user = await this.userModel.findOne({ id: userId });
 
         if (!user) return null;
@@ -25,12 +25,12 @@ export class UsersService {
             id: user.id,
             username: user.username,
             password: user.password,
-            isVirtual: user.isVirtual,
+            role: user.role,
             createDate: user.createDate,
         };
     }
 
-    async findOne(username: string): Promise<User | null> {
+    async findByUsername(username: string): Promise<User | null> {
         const user = await this.userModel.findOne({
             username,
         });
@@ -41,60 +41,40 @@ export class UsersService {
             id: user.id,
             username: user.username,
             password: user.password,
-            isVirtual: user.isVirtual,
+            role: user.role,
             createDate: user.createDate,
         };
     }
 
-    async findByIdAndDelete(userId: string): Promise<User | null> {
+    async deleteById(userId: string): Promise<void> {
         const user = await this.userModel.findOneAndDelete({ id: userId });
 
         if (!user) return null;
 
         await this.devicesService.deleteAllByUserId(userId);
-
-        return {
-            id: user.id,
-            username: user.username,
-            password: user.password,
-            isVirtual: user.isVirtual,
-            createDate: user.createDate,
-        };
     }
 
-    async createVirtualUser(): Promise<User | null> {
+    async createVirtual(): Promise<User | null> {
         this.logger.log(`Creating virtual user...`);
 
-        const user = await this.userModel.create({
-            username: UUIDv4(),
-            password: UUIDv4(),
-            isVirtual: true,
-        });
-
-        return {
-            id: user.id,
-            username: user.username,
-            password: user.password,
-            isVirtual: true,
-            createDate: user.createDate,
-        };
+        return this.create(UUIDv4(), UUIDv4(), ROLE.virtual_user);
     }
 
-    async createUser(username: string, password: string): Promise<User | null> {
+    async create(username: string, password: string, role: ROLE = ROLE.virtual_user): Promise<User | null> {
         this.logger.log(`Creating user '${username}'...`);
 
         try {
             const user = await this.userModel.create({
                 username,
                 password,
-                isVirtual: false,
+                role,
             });
 
             return {
                 id: user.id,
                 username: user.username,
                 password: user.password,
-                isVirtual: false,
+                role: user.role,
                 createDate: user.createDate,
             };
         } catch (err) {

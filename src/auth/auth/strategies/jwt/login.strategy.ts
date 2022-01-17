@@ -1,13 +1,14 @@
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { jwtConstants } from '../../constants';
 import { DevicesService } from '@/auth/devices/service';
 import { UsersService } from '@/auth/users/service';
 import { Credentials } from '@/auth/auth/entities/credentials';
+import { ROLE } from '@/auth/users/entities/user';
 
 @Injectable()
-export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
+export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-login') {
     constructor(private deviceService: DevicesService, private userService: UsersService) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -18,14 +19,19 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     }
 
     async validate(request: Request, payload: any): Promise<Credentials> {
-        if (payload.tokenType !== 'refreshToken' || !request.headers['device-sign']) {
+        if (payload.tokenType !== 'authToken' || !request.headers['device-sign']) {
             throw new UnauthorizedException();
         }
 
         const user = await this.userService.findById(payload.sub);
+
+        if (!user || user.role !== ROLE.virtual_user) {
+            throw new BadRequestException();
+        }
+
         const device = await this.deviceService.findById(payload.deviceSub);
 
-        if (!user || !device || device.holderUserId !== user.id) {
+        if (!device || device.holderUserId !== user.id || request.headers['device-sign'] !== device.sign) {
             throw new UnauthorizedException();
         }
 

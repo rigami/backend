@@ -20,3 +20,12 @@ export class JwtAccessAuthGuard extends AuthGuard('jwt-access') {
         return super.canActivate(context);
     }
 }
+
+@Injectable()
+export class JwtLoginAuthGuard extends AuthGuard('jwt-login') {
+    async canActivate(context: ExecutionContext): Promise<any> {
+        await ValidationRequestHeaders(AppHeaders, context);
+
+        return super.canActivate(context);
+    }
+}

@@ -1,4 +1,4 @@
-import { forwardRef, Inject, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { User } from './entities/user';
 import { InjectModel } from 'nestjs-typegoose';
 import { UserMergeRequestSchema } from './schemas/userMergeRequest';
@@ -105,7 +105,7 @@ export class MergeUsersService {
         if (request.mergedUserIsTemp && applyUser.isTemp) {
             // Create virtual user and login both devices
 
-            const user = await this.usersService.createVirtualUser();
+            const user = await this.usersService.createVirtual();
 
             this.sseService.addEvent('merge-request', request.mergedUserId, {
                 type: 'done-merge',
@@ -123,7 +123,7 @@ export class MergeUsersService {
         } else if (request.mergedUserIsTemp && !applyUser.isTemp) {
             // Login request user by apply user credentials
 
-            const user = await this.usersService.findOneById(applyUser.id);
+            const user = await this.usersService.findById(applyUser.id);
 
             this.sseService.addEvent('merge-request', request.mergedUserId, {
                 type: 'done-merge',
@@ -137,7 +137,7 @@ export class MergeUsersService {
         } else if (!request.mergedUserIsTemp && applyUser.isTemp) {
             // Login apply user by request user credentials
 
-            const user = await this.usersService.findOneById(request.mergedUserId);
+            const user = await this.usersService.findById(request.mergedUserId);
 
             this.sseService.addEvent('merge-request', request.mergedUserId, {
                 type: 'done-merge',
@@ -155,8 +155,8 @@ export class MergeUsersService {
                 throw new Error('SAME_USER');
             }
 
-            const masterUser = await this.usersService.findOneById(applyUser.id);
-            const mergedUser = await this.usersService.findOneById(request.mergedUserId);
+            const masterUser = await this.usersService.findById(applyUser.id);
+            const mergedUser = await this.usersService.findById(request.mergedUserId);
 
             if (!mergedUser) {
                 throw new Error('NOT_EXIST_MERGED_USER');
@@ -170,7 +170,7 @@ export class MergeUsersService {
 
             this.logger.log(`Done merge user id:${mergedUser.id} into user id:${masterUser.id}...`);
 
-            await this.usersService.findByIdAndDelete(request.mergedUserId);
+            await this.usersService.deleteById(request.mergedUserId);
             this.logger.log(`Remove user id:${mergedUser.id}...`);
 
             this.sseService.addEvent('merge-request', request.mergedUserId, {

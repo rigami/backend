@@ -1,5 +1,6 @@
 import { Prop, ModelOptions } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
+import { ROLE } from '@/auth/users/entities/user';
 
 @ModelOptions({ options: { customName: 'users' } })
 export class UserSchema {
@@ -12,8 +13,8 @@ export class UserSchema {
     @Prop()
     password: string;
 
-    @Prop({ required: true })
-    isVirtual!: boolean;
+    @Prop({ required: true, enum: Object.keys(ROLE) })
+    role!: ROLE;
 
     @Prop({ required: true, default: () => new Date() })
     createDate?: Date;

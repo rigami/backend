@@ -7,6 +7,7 @@ export enum DEVICE_TYPE {
     'WEB' = 'WEB',
     'ANDROID' = 'ANDROID',
     'IOS' = 'IOS',
+    'CONSOLE' = 'CONSOLE',
 }
 
 export class Device {
@@ -21,30 +22,9 @@ export class Device {
     readonly holderUserId?: string;
 
     @Expose()
-    @IsString()
-    readonly userAgent: string;
-
-    @Expose()
-    @IsEnum(DEVICE_TYPE)
-    readonly type: string;
-
-    @IsUUID()
-    @IsOptional()
-    readonly token?: string;
-
-    @IsUUID()
-    @IsOptional()
-    readonly deviceSign?: string;
-
-    @Expose()
     @IsDate()
     @IsOptional()
     readonly createDate?: Date;
-
-    @Expose()
-    @IsString()
-    @IsOptional()
-    readonly lastActivityIp?: string;
 
     @Expose()
     @IsDate()
@@ -59,4 +39,25 @@ export class Device {
     @IsBoolean()
     @IsOptional()
     readonly isTemp?: boolean = false;
+
+    @Expose()
+    @IsEnum(DEVICE_TYPE)
+    readonly type: string;
+
+    @IsUUID()
+    @IsOptional()
+    readonly sign?: string;
+
+    @Expose()
+    @IsString()
+    readonly userAgent: string;
+
+    @Expose()
+    @IsString()
+    readonly platform: string;
+
+    @Expose()
+    @IsString()
+    @IsOptional()
+    readonly lastActivityIp?: string;
 }

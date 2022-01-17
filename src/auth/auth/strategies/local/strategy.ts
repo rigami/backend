@@ -1,8 +1,9 @@
 import { Strategy } from 'passport-local';
 import { PassportStrategy } from '@nestjs/passport';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from '../../service';
 import { Credentials } from '@/auth/auth/entities/credentials';
+import { ROLE } from '@/auth/users/entities/user';
 
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
@@ -17,11 +18,15 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
             throw new UnauthorizedException();
         }
 
+        if (user.role === ROLE.virtual_user) {
+            throw new BadRequestException();
+        }
+
         return {
             user: {
                 id: user.id,
                 username: user.username,
-                isVirtual: user.isVirtual,
+                role: user.role,
             },
         };
     }

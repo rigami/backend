@@ -1,5 +1,6 @@
 import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
 import { v4 as UUIDv4 } from 'uuid';
+import { DEVICE_TYPE } from '@/auth/devices/entities/device';
 
 @ModelOptions({ options: { customName: 'devices' } })
 @Index({ holderUserId: 1, id: 1 }, { unique: true })
@@ -13,14 +14,14 @@ export class DeviceSchema {
     @Prop({ required: true })
     userAgent: string;
 
-    @Prop({ required: true })
+    @Prop({ required: true, enum: Object.keys(DEVICE_TYPE) })
     type: string;
 
     @Prop({ required: true, unique: true })
-    token: string;
+    sign: string;
 
-    @Prop()
-    deviceSign!: string;
+    @Prop({ required: true })
+    platform: string;
 
     @Prop({ required: true, default: () => new Date() })
     createDate?: Date;

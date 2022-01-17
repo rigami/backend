@@ -15,7 +15,7 @@ import { CurrentDevice } from '@/auth/auth/utils/currentDevice.param.decorator';
 export class UsersController {
     constructor(private usersService: UsersService, private mergeService: MergeUsersService) {}
 
-    @UseGuards(JwtAccessAuthGuard)
+    /* @UseGuards(JwtAccessAuthGuard)
     @Sse('merge/request/create')
     async generateMergeCodeByExistUser(
         @CurrentUser() user,
@@ -106,5 +106,5 @@ export class UsersController {
         } catch (e) {
             throw new BadRequestException(e.message);
         }
-    }
+    } */
 }
