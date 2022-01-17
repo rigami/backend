@@ -13,6 +13,7 @@ async function bootstrap() {
         }),
     );
     app.disable('x-powered-by');
+    app.enableCors();
     await app.listen(8080);
 }
 
