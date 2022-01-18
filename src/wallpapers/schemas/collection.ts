@@ -1,5 +1,4 @@
 import { Index, ModelOptions, Prop } from '@typegoose/typegoose';
-import { service, type } from '@/wallpapers/entities/wallpaper';
 import { WallpaperCacheSchema } from '@/wallpapers/schemas/wallpaperCache';
 
 @ModelOptions({ options: { customName: 'collection-wallpapers' } })
@@ -7,4 +6,7 @@ import { WallpaperCacheSchema } from '@/wallpapers/schemas/wallpaperCache';
 export class CollectionWallpaperSchema extends WallpaperCacheSchema {
     @Prop({ required: true })
     collectionType: string;
+
+    @Prop({ required: true, default: () => new Date() })
+    createDate?: Date;
 }
