@@ -53,6 +53,9 @@ export class CollectionsWallpapersController {
 
         const res = await this.collectionWallpaperModel
             .find(mongoQuery)
+            .sort({
+                [sort[0] || 'createDate']: sort[1] === 'ASC' ? 1 : -1,
+            })
             .skip(range[0])
             .limit(range[1] - range[0] + 1);
 
