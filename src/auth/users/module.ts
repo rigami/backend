@@ -8,6 +8,7 @@ import { MergeUsersService } from '@/auth/users/merge.service';
 import { DevicesModule } from '@/auth/devices/module';
 import { SSEModule } from '@/utils/sse/module';
 import { AuthModule } from '@/auth/auth/module';
+import { UsersListController } from '@/auth/users/list.console.controller';
 
 @Module({
     imports: [
@@ -17,7 +18,7 @@ import { AuthModule } from '@/auth/auth/module';
         SSEModule.register(),
     ],
     providers: [UsersService, MergeUsersService],
-    controllers: [UsersController],
+    controllers: [UsersController, UsersListController],
     exports: [UsersService, MergeUsersService],
 })
 export class UsersModule {}
