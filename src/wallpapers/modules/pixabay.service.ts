@@ -67,7 +67,6 @@ export class PixabayService implements IWallpapersService {
             id: encodeInternalId({
                 idInService: raw.id,
                 service: service.pixabay,
-                type: type.video,
             }),
             idInService: raw.id,
             rawSrc: `${rawLink}&download=1`,

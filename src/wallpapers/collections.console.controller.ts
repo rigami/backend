@@ -14,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
 import { CurUser } from '@/auth/auth/utils/currentUser.param.decorator';
-import { User } from '@/auth/users/entities/user';
+import { ROLE, User } from '@/auth/users/entities/user';
 import { RequestHeaders } from '@/auth/auth/utils/validationHeaders.headers.decorator';
 import { InjectModel } from 'nestjs-typegoose';
 import { CollectionWallpaperSchema } from '@/wallpapers/schemas/collection';
@@ -22,7 +22,7 @@ import { ReturnModelType } from '@typegoose/typegoose';
 import { CollectionWallpaper } from '@/wallpapers/entities/collection';
 import { encodeInternalId, WallpapersService } from '@/wallpapers/service';
 import { omit } from 'lodash';
-import { service } from '@/wallpapers/entities/wallpaper';
+import { Roles } from '@/auth/auth/strategies/roles/role.decorator';
 
 @Controller('v1/wallpapers/collections')
 export class CollectionsWallpapersController {
@@ -35,6 +35,7 @@ export class CollectionsWallpapersController {
     ) {}
 
     @UseGuards(JwtAccessAuthGuard)
+    @Roles(ROLE.moderator)
     @Get()
     async search(
         @Query() query,
@@ -62,7 +63,7 @@ export class CollectionsWallpapersController {
         const total = await this.collectionWallpaperModel.find(mongoQuery).count();
 
         response.set({
-            'Content-Range': `wallpapers/collections ${range[0]}-${range[0] + res.length - 1}/${total}`,
+            'Content-Range': `wallpapers/collections ${range[0] + 1}-${range[0] + res.length}/${total}`,
             'Access-Control-Expose-Headers': 'Content-Range',
         });
 
@@ -72,18 +73,20 @@ export class CollectionsWallpapersController {
     @UseGuards(JwtAccessAuthGuard)
     @Post()
     @HttpCode(200)
-    async createItem(@Body() collection: Pick<CollectionWallpaper, 'service' | 'idInService' | 'collectionType'>, @CurUser() user: User) {
+    async createItem(
+        @Body() collection: Pick<CollectionWallpaper, 'service' | 'idInService' | 'collectionType'>,
+        @CurUser() user: User,
+    ) {
         console.log(collection, user);
 
         const wallpaper = await this.wallpapersService.getWallpaper(collection.service, collection.idInService);
 
-        console.log('wallpaper:', wallpaper)
+        console.log('wallpaper:', wallpaper);
 
         return this.collectionWallpaperModel.create({
             id: encodeInternalId({
                 idInService: collection.idInService,
                 service: collection.service,
-                type: wallpaper.type,
             }),
             ...collection,
             ...wallpaper,

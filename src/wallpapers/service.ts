@@ -12,7 +12,7 @@ import { WallpaperCacheSchema } from '@/wallpapers/schemas/wallpaperCache';
 import { PixabayService } from '@/wallpapers/modules/pixabay.service';
 import { PexelsService } from '@/wallpapers/modules/pexels.service';
 
-export type LiteWallpaper = Pick<Wallpaper, 'idInService' | 'service' | 'type'>;
+export type LiteWallpaper = Pick<Wallpaper, 'idInService' | 'service'>;
 
 export function decodeInternalId(internalId: string): LiteWallpaper {
     return plainToClass(Wallpaper, JSON.parse(base64url.decode(internalId)));

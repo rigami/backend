@@ -56,7 +56,6 @@ export class PexelsService implements IWallpapersService {
             id: encodeInternalId({
                 idInService: raw.id,
                 service: service.pexels,
-                type: type.video,
             }),
             idInService: raw.id,
             rawSrc: rawLink,

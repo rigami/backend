@@ -34,7 +34,6 @@ export class UnsplashService implements IWallpapersService {
             id: encodeInternalId({
                 idInService: raw.id,
                 service: service.unsplash,
-                type: type.image,
             }),
             idInService: raw.id,
             rawSrc: raw.urls.raw,

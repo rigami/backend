@@ -9,8 +9,8 @@ import { RateWallpaperSchema } from '@/wallpapers/schemas/rate';
 import { WallpapersService } from '@/wallpapers/service';
 import { BlacklistWallpaperSchema } from '@/wallpapers/schemas/blacklist';
 import { CollectionWallpaperSchema } from '@/wallpapers/schemas/collection';
-import { BlackListWallpapersController } from '@/wallpapers/blackList.controller';
-import { CollectionsWallpapersController } from '@/wallpapers/collections.controller';
+import { BlackListWallpapersController } from '@/wallpapers/blackList.console.controller';
+import { CollectionsWallpapersController } from '@/wallpapers/collections.console.controller';
 import { PixabayService } from '@/wallpapers/modules/pixabay.service';
 import { PexelsService } from '@/wallpapers/modules/pexels.service';
 
