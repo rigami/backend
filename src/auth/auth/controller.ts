@@ -9,7 +9,8 @@ import {
     Req,
     HttpCode,
     BadRequestException,
-    UnauthorizedException, ForbiddenException,
+    UnauthorizedException,
+    ForbiddenException,
 } from '@nestjs/common';
 import { AuthService } from './service';
 import { LocalAuthGuard } from './strategies/local/auth.guard';
@@ -22,6 +23,10 @@ import { ROLE, User } from '@/auth/users/entities/user';
 import { RequestHeaders } from '@/auth/auth/utils/validationHeaders.headers.decorator';
 import { ExtractJwt } from 'passport-jwt';
 import { DevicesService } from '@/auth/devices/service';
+import { Roles } from '@/auth/auth/strategies/roles/role.decorator';
+import { RolesGuard } from '@/auth/auth/strategies/roles/roles.guard';
+import { DevicesGuard } from '@/auth/auth/strategies/devices/device.guard';
+import { Devices } from '@/auth/auth/strategies/devices/device.decorator';
 
 @Controller('v1/auth')
 export class AuthController {
@@ -71,44 +76,30 @@ export class AuthController {
         return;
     }
 
-    @UseGuards(LocalAuthGuard)
+    @UseGuards(LocalAuthGuard, RolesGuard, DevicesGuard)
     @Post('login/credentials')
+    @Roles(ROLE.moderator)
+    @Devices(DEVICE_TYPE.console)
     @HttpCode(200)
-    async loginByCredentials(@CurrentUser() user: User, @RequestHeaders() headers: Headers, @Ip() ip: string) {
-        if (headers['device-type'] === DEVICE_TYPE.CONSOLE && user.role !== ROLE.moderator) {
-            throw new ForbiddenException();
-        }
-
-        const isVerify = headers['device-sign'] && (await this.authService.verifyDevice(headers['device-sign'], user));
-
-        let device;
-
-        if (!isVerify) {
-            device = await this.authService.signDevice(
-                headers['user-agent'],
-                ip,
-                headers['device-type'],
-                headers['device-platform'],
-                user,
-            );
+    async loginByCredentials(
+        @CurrentUser() user: User,
+        @CurrentDevice() device: Device,
+        @RequestHeaders() headers: Headers,
+        @Ip() ip: string,
+    ) {
+        if (!device.isVerify) {
+            device = await this.authService.signDevice(device.userAgent, ip, device.type, device.platform, user);
         } else {
-            device = await this.devicesService.findBySign(headers['device-sign']);
+            await this.devicesService.updateLastActivity(device, ip, headers['user-agent']);
         }
 
-        const loginInfo = await this.authService.login({
-            user,
-            ip,
-            userAgent: headers['user-agent'],
-            deviceType: headers['device-type'],
-            deviceSign: device.sign,
-            devicePlatform: headers['device-platform'],
-        });
+        const loginInfo = await this.authService.login(user, device);
 
         return {
             userId: user.id,
             username: user.username,
             ...loginInfo,
-            isNewDevice: !isVerify,
+            isNewDevice: !device.isVerify,
             deviceSign: device.sign,
         };
     }
@@ -126,16 +117,11 @@ export class AuthController {
 
         if (!isVerify) {
             throw new BadRequestException('Not signed device. First user/sign-device');
+        } else {
+            await this.devicesService.updateLastActivity(device, ip, headers['user-agent']);
         }
 
-        return this.authService.login({
-            user,
-            ip,
-            userAgent: headers['user-agent'],
-            deviceType: headers['device-type'],
-            devicePlatform: headers['device-platform'],
-            deviceSign: device.sign,
-        });
+        return this.authService.login(user, device);
     }
 
     @UseGuards(JwtRefreshAuthGuard)

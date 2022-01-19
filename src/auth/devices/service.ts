@@ -59,8 +59,17 @@ export class DevicesService {
         this.logger.log(`Deleted all ${statistics.deletedCount} devices by user id:${userId}...`);
     }
 
-    async updateLastActivity(device: Device) {
-        await this.deviceModel.updateOne({ id: device.id }, { $set: { lastActivityDate: new Date() } });
+    async updateLastActivity(device: Device, ip?: string, userAgent?: string) {
+        await this.deviceModel.updateOne(
+            { id: device.id },
+            {
+                $set: {
+                    lastActivityDate: new Date(),
+                    lastActivityIp: ip || device.lastActivityIp,
+                    userAgent: userAgent || device.userAgent,
+                },
+            },
+        );
     }
 
     async getAllDevices(user: User): Promise<Device[]> {

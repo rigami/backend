@@ -3,11 +3,11 @@ import { User } from '@/auth/users/entities/user';
 import { Expose, Type } from 'class-transformer';
 
 export enum DEVICE_TYPE {
-    'EXTENSION_CHROME' = 'EXTENSION_CHROME',
-    'WEB' = 'WEB',
-    'ANDROID' = 'ANDROID',
-    'IOS' = 'IOS',
-    'CONSOLE' = 'CONSOLE',
+    'extension_chrome' = 'extension_chrome',
+    'web' = 'web',
+    'android' = 'android',
+    'ios' = 'ios',
+    'console' = 'console',
 }
 
 export class Device {
@@ -42,7 +42,7 @@ export class Device {
 
     @Expose()
     @IsEnum(DEVICE_TYPE)
-    readonly type: string;
+    readonly type: DEVICE_TYPE;
 
     @IsUUID()
     @IsOptional()
@@ -60,4 +60,9 @@ export class Device {
     @IsString()
     @IsOptional()
     readonly lastActivityIp?: string;
+
+    @Expose()
+    @IsBoolean()
+    @IsOptional()
+    readonly isVerify?: boolean;
 }

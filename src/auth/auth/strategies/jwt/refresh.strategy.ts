@@ -40,6 +40,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
                 userAgent: device.userAgent,
                 type: device.type,
                 platform: device.platform,
+                isVerify: true,
             },
         };
     }

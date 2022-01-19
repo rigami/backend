@@ -15,7 +15,7 @@ export class DeviceSchema {
     userAgent: string;
 
     @Prop({ required: true, enum: Object.keys(DEVICE_TYPE) })
-    type: string;
+    type: DEVICE_TYPE;
 
     @Prop({ required: true, unique: true })
     sign: string;

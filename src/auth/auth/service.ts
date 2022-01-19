@@ -46,19 +46,17 @@ export class AuthService {
         return await this.usersService.create(registrationInfo.username, registrationInfo.password, ROLE.user);
     }
 
-    async login(loginInfo: LoginInfo) {
-        const device = await this.devicesService.findBySign(loginInfo.deviceSign);
-
-        if (!device || device.holderUserId !== loginInfo.user.id) {
-            throw new Error(`Not signed device for user.id:${loginInfo.user.id}`);
+    async login(user: User, device: Device) {
+        if (!device || !user || device.holderUserId !== user.id) {
+            throw new Error(`Not signed device for user.id:${user.id}`);
         }
 
-        const accessToken = await this.getAccessToken(loginInfo.user, device);
+        const accessToken = await this.getAccessToken(user, device);
 
         const payload = {
             tokenType: 'refreshToken',
-            sub: loginInfo.user.id,
-            username: loginInfo.user.username,
+            sub: user.id,
+            username: user.username,
             deviceSub: device.id,
         };
 
@@ -68,7 +66,7 @@ export class AuthService {
         };
     }
 
-    async verifyDevice(sign: string, user: User) {
+    async verifyDevice(sign: string, user: User): Promise<boolean> {
         this.logger.log(`Verify device for user.id:${user.id}...`);
 
         if (!user) {

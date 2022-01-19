@@ -40,6 +40,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-access') 
                 userAgent: device.userAgent,
                 type: device.type,
                 platform: device.platform,
+                isVerify: true,
             },
         };
     }
