@@ -23,7 +23,12 @@ import { CollectionWallpaper } from '@/wallpapers/entities/collection';
 import { encodeInternalId, WallpapersService } from '@/wallpapers/service';
 import { omit } from 'lodash';
 import { Roles } from '@/auth/auth/strategies/roles/role.decorator';
+import { RolesGuard } from '@/auth/auth/strategies/roles/roles.guard';
+import { DevicesGuard } from '@/auth/auth/strategies/devices/device.guard';
+import { Devices } from '@/auth/auth/strategies/devices/device.decorator';
+import { DEVICE_TYPE } from '@/auth/devices/entities/device';
 
+@UseGuards(JwtAccessAuthGuard, RolesGuard, DevicesGuard)
 @Controller('v1/wallpapers/collections')
 export class CollectionsWallpapersController {
     private readonly logger = new Logger(CollectionsWallpapersController.name);
@@ -34,8 +39,8 @@ export class CollectionsWallpapersController {
         private readonly collectionWallpaperModel: ReturnModelType<typeof CollectionWallpaperSchema>,
     ) {}
 
-    @UseGuards(JwtAccessAuthGuard)
     @Roles(ROLE.moderator)
+    @Devices(DEVICE_TYPE.console)
     @Get()
     async search(
         @Query() query,
@@ -70,7 +75,8 @@ export class CollectionsWallpapersController {
         return res;
     }
 
-    @UseGuards(JwtAccessAuthGuard)
+    @Roles(ROLE.moderator)
+    @Devices(DEVICE_TYPE.console)
     @Post()
     @HttpCode(200)
     async createItem(
@@ -93,7 +99,8 @@ export class CollectionsWallpapersController {
         });
     }
 
-    @UseGuards(JwtAccessAuthGuard)
+    @Roles(ROLE.moderator)
+    @Devices(DEVICE_TYPE.console)
     @Delete('/:id')
     @HttpCode(200)
     async deleteOne(@Param('id') id: string) {

@@ -5,8 +5,6 @@ import { Expose, Type } from 'class-transformer';
 export enum DEVICE_TYPE {
     'extension_chrome' = 'extension_chrome',
     'web' = 'web',
-    'android' = 'android',
-    'ios' = 'ios',
     'console' = 'console',
 }
 

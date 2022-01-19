@@ -1,16 +1,14 @@
 import {
+    BadRequestException,
     Body,
     Controller,
+    Get,
+    Headers,
+    HttpCode,
     Ip,
     Post,
-    UseGuards,
-    Headers,
-    Get,
     Req,
-    HttpCode,
-    BadRequestException,
-    UnauthorizedException,
-    ForbiddenException,
+    UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './service';
 import { LocalAuthGuard } from './strategies/local/auth.guard';
@@ -46,8 +44,10 @@ export class AuthController {
         return { authToken };
     }
 
-    @UseGuards(LocalAuthGuard)
+    @UseGuards(LocalAuthGuard, RolesGuard, DevicesGuard)
     @Post('user/sign-device')
+    @Roles(ROLE.user)
+    @Devices(DEVICE_TYPE.extension_chrome, DEVICE_TYPE.web)
     async signDeviceForUser(
         @RequestHeaders() headers: Headers,
         @Ip() ip: string,
@@ -104,8 +104,10 @@ export class AuthController {
         };
     }
 
-    @UseGuards(JwtLoginAuthGuard)
+    @UseGuards(JwtLoginAuthGuard, RolesGuard, DevicesGuard)
     @Post('login/jwt')
+    @Roles(ROLE.virtual_user)
+    @Devices(DEVICE_TYPE.extension_chrome, DEVICE_TYPE.web)
     @HttpCode(200)
     async loginByJwt(
         @CurrentUser() user: User,
