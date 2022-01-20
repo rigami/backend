@@ -49,19 +49,24 @@ export class WallpapersService {
 
     async search(query: string, count: number, type: WALLPAPER_TYPE): Promise<any> {
         this.logger.log(`Search wallpapers query:${query} count:${count} type:${type}...`);
-        if (type === WALLPAPER_TYPE.image) {
-            const wallpapers = await this.unsplashService.search(query, count);
+
+        let wallpapers = [];
+
+        if (!type || type === WALLPAPER_TYPE.image) {
+            wallpapers = await this.unsplashService.search(query, count);
 
             this.logger.log(`Found ${wallpapers.length} in unsplash service...`);
-        } else {
+        }
+
+        if (!type || type === WALLPAPER_TYPE.video) {
             const halfCount = Math.ceil((count || 1) / 2);
 
-            let wallpapers;
+            const [pexelsWallpapers, pixabayWallpapers] = await Promise.all([
+                this.pexelsService.search(query, halfCount),
+                this.pixabayService.search(query, halfCount),
+            ]);
 
-            const pexelsWallpapers = await this.pexelsService.search(query, halfCount);
-            const pixabayWallpapers = await this.pixabayService.search(query, halfCount);
-
-            wallpapers = [...pexelsWallpapers, ...pixabayWallpapers];
+            wallpapers = [...wallpapers, ...pexelsWallpapers, ...pixabayWallpapers];
 
             this.logger.log(
                 `Found ${pexelsWallpapers.length} in pexels service and ${pixabayWallpapers.length} in pixabay service`,
@@ -87,13 +92,76 @@ export class WallpapersService {
 
                 wallpapers = [...wallpapers, ...addWallpapers];
             }
-
-            return wallpapers;
         }
+
+        return wallpapers.sort(() => Math.random() - 0.5).slice(0, count);
+    }
+
+    async random(query: string, count: number, type: WALLPAPER_TYPE): Promise<any> {
+        this.logger.log(`Search random wallpapers query:${query} count:${count} type:${type}...`);
+
+        let wallpapers = [];
+
+        if (!type || type === WALLPAPER_TYPE.image) {
+            wallpapers = await this.unsplashService.getRandom(query, count);
+
+            this.logger.log(`Found ${wallpapers.length} in unsplash service...`);
+        }
+
+        if (!type || type === WALLPAPER_TYPE.video) {
+            const halfCount = Math.ceil((count || 1) / 2);
+
+            const [pexelsWallpapers, pixabayWallpapers] = await Promise.all([
+                this.pexelsService.getRandom(query, halfCount),
+                this.pixabayService.getRandom(query, halfCount),
+            ]);
+
+            wallpapers = [...wallpapers, ...pexelsWallpapers, ...pixabayWallpapers];
+
+            this.logger.log(
+                `Found ${pexelsWallpapers.length} in pexels service and ${pixabayWallpapers.length} in pixabay service`,
+            );
+
+            if (pexelsWallpapers.length + pixabayWallpapers.length < count) {
+                const addCount = count - (pexelsWallpapers.length + pixabayWallpapers.length);
+                let addWallpapers;
+
+                if (pexelsWallpapers.length < pixabayWallpapers.length) {
+                    this.logger.log(
+                        `Not enough results. Request additional ${addCount} wallpapers pixabay from service...`,
+                    );
+                    addWallpapers = await this.pixabayService.getRandom(query, addCount);
+                    this.logger.log(`Found ${addWallpapers.length} in pixabay service...`);
+                } else {
+                    this.logger.log(
+                        `Not enough results. Request additional ${addCount} wallpapers pexels from service...`,
+                    );
+                    addWallpapers = await this.pexelsService.getRandom(query, addCount);
+                    this.logger.log(`Found ${addWallpapers.length} in pexels service...`);
+                }
+
+                wallpapers = [...wallpapers, ...addWallpapers];
+            }
+        }
+
+        return wallpapers.sort(() => Math.random() - 0.5).slice(0, count);
     }
 
     async getWallpaper(service: service, idInService: string): Promise<Wallpaper> {
-        return this.services[service].getById(idInService);
+        let wallpaper = await this.wallpaperCacheModel.findOne({
+            id: encodeInternalId({
+                idInService,
+                service,
+            }),
+        });
+
+        if (!wallpaper) {
+            wallpaper = await this.services[service].getById(idInService);
+
+            await this.saveToCache(wallpaper);
+        }
+
+        return wallpaper;
     }
 
     async setRate(id: string, rate: rate, user: User): Promise<void> {

@@ -83,8 +83,40 @@ export class PixabayService implements IWallpapersService {
         });
     }
 
-    getRandom(query: string, count: number): Promise<Wallpaper[]> {
-        return Promise.resolve([]);
+    async getRandom(query: string, count: number): Promise<Wallpaper[]> {
+        const response = await this.getData(`/videos?${query ? `q=${query}&` : ''}per_page=3`);
+
+        if (response.total === 0) return [];
+
+        if (count >= response.total || response.total <= 15) {
+            const response = await this.getData(`/videos?${query ? `q=${query}&` : ''}per_page=${Math.min(count, 15)}`);
+
+            return response.hits
+                .sort(() => Math.random() - 0.5)
+                .slice(0, count)
+                .map(PixabayService.rawToEntity);
+        }
+
+        const totalPages = Math.ceil(response.total / 15);
+        const pages = Array.from({ length: Math.ceil(totalPages * 0.6) }, (el, index) => index + 1).sort(
+            () => Math.random() - 0.5,
+        );
+        let list = [];
+
+        for (const page of pages) {
+            const response = await this.getData(`/videos?${query ? `q=${query}&` : ''}per_page=15&page=${page}`);
+            const found = response.hits.sort(() => Math.random() - 0.5).slice(0, 5);
+
+            list = list.concat(found);
+
+            list = list.filter(
+                (checkItem, checkIndex) => !list.find((item, index) => checkItem.id === item.id && checkIndex < index),
+            );
+
+            if (list.length >= count) break;
+        }
+
+        return list.slice(0, count).map(PixabayService.rawToEntity);
     }
 
     getRandomByCollection(collection: string, count: number): Promise<Wallpaper[]> {

@@ -53,7 +53,7 @@ export class UnsplashService implements IWallpapersService {
     async getRandom(query: string, count: number): Promise<Wallpaper[]> {
         const response = await this.getData(`/photos/random?orientation=landscape&query=${query}&count=${count}`);
 
-        return response.results.map(UnsplashService.rawToEntity);
+        return response.map(UnsplashService.rawToEntity);
     }
 
     async getById(id: string): Promise<Wallpaper> {

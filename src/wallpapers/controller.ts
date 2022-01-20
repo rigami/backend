@@ -15,11 +15,22 @@ export class WallpapersController {
     // @UseGuards(JwtAccessAuthGuard)
     @Get('search')
     async search(
-        @Query('type') typeWallpaper: type = type.image,
+        @Query('type') typeWallpaper: type,
         @Query('query') query: string,
+        @Query('count') count: number,
         // @CurUser() user: User,
     ) {
-        return await this.wallpapersService.search(query, 12, typeWallpaper);
+        return await this.wallpapersService.search(query, count || 10, typeWallpaper);
+    }
+
+    @Get('random')
+    async random(
+        @Query('type') typeWallpaper: type,
+        @Query('query') query: string,
+        @Query('count') count: number,
+        // @CurUser() user: User,
+    ) {
+        return await this.wallpapersService.random(query, count || 10, typeWallpaper);
     }
 
     @UseGuards(JwtAccessAuthGuard)

@@ -30,6 +30,7 @@ export class PexelsService implements IWallpapersService {
                         Authorization: apiKey,
                     },
                     maxRedirects: 5,
+                    timeout: 10000,
                 },
             ),
         );
@@ -72,8 +73,54 @@ export class PexelsService implements IWallpapersService {
         });
     }
 
-    getRandom(query: string, count: number): Promise<Wallpaper[]> {
-        return Promise.resolve([]);
+    async getRandom(query: string, count: number): Promise<Wallpaper[]> {
+        let queryWithAttrs = '';
+
+        if (!query) {
+            queryWithAttrs = `/videos/popular?`;
+        } else {
+            queryWithAttrs = `/videos/search?query=${query}&`;
+        }
+
+        const response = await this.getData(`${queryWithAttrs}per_page=3`);
+
+        if (response.total_results === 0) return [];
+
+        if (count >= response.total_results || response.total_results <= 15) {
+            const response = await this.getData(`${queryWithAttrs}per_page=${Math.min(count, 15)}`);
+
+            return response.videos
+                .sort(() => Math.random() - 0.5)
+                .slice(0, count)
+                .map(PexelsService.rawToEntity);
+        }
+
+        const totalPages = Math.ceil(response.total_results / 15);
+        const pages = Array.from(
+            { length: Math.ceil(totalPages * (response.total_results > 1000 ? 0.3 : 0.6)) },
+            (el, index) => index + 1,
+        ).sort(() => Math.random() - 0.5);
+        let list = [];
+
+        for (const page of pages) {
+            try {
+                const response = await this.getData(`${queryWithAttrs}per_page=15&page=${page}`);
+                const found = response.videos.sort(() => Math.random() - 0.5).slice(0, 5);
+
+                list = list.concat(found);
+
+                list = list.filter(
+                    (checkItem, checkIndex) =>
+                        !list.find((item, index) => checkItem.id === item.id && checkIndex < index),
+                );
+            } catch (e) {
+                console.error(e);
+            }
+
+            if (list.length >= count) break;
+        }
+
+        return list.slice(0, count).map(PexelsService.rawToEntity);
     }
 
     getRandomByCollection(collection: string, count: number): Promise<Wallpaper[]> {
