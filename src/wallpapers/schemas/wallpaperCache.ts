@@ -42,4 +42,7 @@ export class WallpaperCacheSchema {
 
     @Prop({ required: true, enum: Object.keys(type) })
     type: string;
+
+    @Prop({ required: true, default: () => new Date() })
+    createDate?: Date;
 }

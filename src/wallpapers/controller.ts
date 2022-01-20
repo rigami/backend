@@ -35,19 +35,19 @@ export class WallpapersController {
 
     @UseGuards(JwtAccessAuthGuard)
     @Post(':id/like')
-    async like(@Param('id') internalId: string, @CurUser() user: User) {
-        await this.wallpapersService.setRate(internalId, rate.like, user);
+    async like(@Param('id') id: string, @CurUser() user: User) {
+        await this.wallpapersService.setRate(id, rate.like, user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
     @Post(':id/dislike')
-    async dislike(@Param('id') internalId: string, @CurUser() user: User) {
-        await this.wallpapersService.setRate(internalId, rate.dislike, user);
+    async dislike(@Param('id') id: string, @CurUser() user: User) {
+        await this.wallpapersService.setRate(id, rate.dislike, user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
     @Post(':id/reset-rate')
-    async resetRate(@Param('id') internalId: string, @CurUser() user: User) {
-        await this.wallpapersService.resetRate(internalId, user);
+    async resetRate(@Param('id') id: string, @CurUser() user: User) {
+        await this.wallpapersService.resetRate(id, user);
     }
 }

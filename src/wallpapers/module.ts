@@ -7,9 +7,9 @@ import { TypegooseModule } from 'nestjs-typegoose';
 import { WallpaperCacheSchema } from '@/wallpapers/schemas/wallpaperCache';
 import { RateWallpaperSchema } from '@/wallpapers/schemas/rate';
 import { WallpapersService } from '@/wallpapers/service';
-import { BlacklistWallpaperSchema } from '@/wallpapers/schemas/blacklist';
+import { BlockedWallpaperSchema } from '@/wallpapers/schemas/blocked';
 import { CollectionWallpaperSchema } from '@/wallpapers/schemas/collection';
-import { BlackListWallpapersController } from '@/wallpapers/blackList.console.controller';
+import { BlockedWallpapersController } from '@/wallpapers/blocked.console.controller';
 import { CollectionsWallpapersController } from '@/wallpapers/collections.console.controller';
 import { PixabayService } from '@/wallpapers/modules/pixabay.service';
 import { PexelsService } from '@/wallpapers/modules/pexels.service';
@@ -23,11 +23,11 @@ import { PexelsService } from '@/wallpapers/modules/pexels.service';
         }),
         TypegooseModule.forFeature([WallpaperCacheSchema], 'cache'),
         TypegooseModule.forFeature(
-            [RateWallpaperSchema, BlacklistWallpaperSchema, CollectionWallpaperSchema],
+            [RateWallpaperSchema, BlockedWallpaperSchema, CollectionWallpaperSchema],
             'wallpapers',
         ),
     ],
     providers: [UnsplashService, PixabayService, PexelsService, WallpapersService],
-    controllers: [WallpapersController, BlackListWallpapersController, CollectionsWallpapersController],
+    controllers: [WallpapersController, BlockedWallpapersController, CollectionsWallpapersController],
 })
 export class WallpapersModule {}

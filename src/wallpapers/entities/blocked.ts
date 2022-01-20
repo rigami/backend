@@ -7,7 +7,12 @@ export enum BLOCKED_TYPE {
     'wallpaper' = 'wallpaper',
 }
 
-export class BlackListWallpaper {
+export enum BLOCKED_METHOD {
+    'manual' = 'manual',
+    'automatic' = 'automatic',
+}
+
+export class BlockedWallpaper {
     @IsString() @IsOptional() readonly id?: string;
 
     @IsString()
@@ -23,6 +28,10 @@ export class BlackListWallpaper {
     @IsEnum(BLOCKED_TYPE)
     @IsNotEmpty()
     blockedType;
+
+    @IsEnum(BLOCKED_METHOD)
+    @IsNotEmpty()
+    blockedMethod;
 
     @Expose()
     @IsDate()

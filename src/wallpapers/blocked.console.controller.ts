@@ -10,17 +10,18 @@ import {
     Post,
     Query,
     Res,
+    Type,
     UseGuards,
 } from '@nestjs/common';
 import { encodeInternalId, WallpapersService } from '@/wallpapers/service';
 import { InjectModel } from 'nestjs-typegoose';
 import { ReturnModelType } from '@typegoose/typegoose';
-import { BlacklistWallpaperSchema } from '@/wallpapers/schemas/blacklist';
+import { BlockedWallpaperSchema } from '@/wallpapers/schemas/blocked';
 import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
 import { RequestHeaders } from '@/auth/auth/utils/validationHeaders.headers.decorator';
 import { CurUser } from '@/auth/auth/utils/currentUser.param.decorator';
 import { ROLE, User } from '@/auth/users/entities/user';
-import { BlackListWallpaper } from '@/wallpapers/entities/blackList';
+import { BLOCKED_METHOD, BlockedWallpaper } from '@/wallpapers/entities/blocked';
 import { omit } from 'lodash';
 import { RolesGuard } from '@/auth/auth/strategies/roles/roles.guard';
 import { DevicesGuard } from '@/auth/auth/strategies/devices/device.guard';
@@ -29,14 +30,14 @@ import { Devices } from '@/auth/auth/strategies/devices/device.decorator';
 import { DEVICE_TYPE } from '@/auth/devices/entities/device';
 
 @UseGuards(JwtAccessAuthGuard, RolesGuard, DevicesGuard)
-@Controller('v1/wallpapers/black-list')
-export class BlackListWallpapersController {
-    private readonly logger = new Logger(BlackListWallpapersController.name);
+@Controller('v1/wallpapers/blocked')
+export class BlockedWallpapersController {
+    private readonly logger = new Logger(BlockedWallpapersController.name);
 
     constructor(
         private wallpapersService: WallpapersService,
-        @InjectModel(BlacklistWallpaperSchema)
-        private readonly blackListWallpaperModel: ReturnModelType<typeof BlacklistWallpaperSchema>,
+        @InjectModel(BlockedWallpaperSchema)
+        private readonly blackListWallpaperModel: ReturnModelType<typeof BlockedWallpaperSchema>,
     ) {}
 
     @Roles(ROLE.moderator)
@@ -79,13 +80,14 @@ export class BlackListWallpapersController {
     @Devices(DEVICE_TYPE.console)
     @Post()
     @HttpCode(200)
-    async createItem(@Body() entity: BlackListWallpaper) {
+    async createItem(@Body() entity: Omit<BlockedWallpaper, 'blockedMethod'>) {
         return this.blackListWallpaperModel.create({
             id: encodeInternalId({
                 idInService: entity.idInService,
                 service: entity.service,
             }),
             ...entity,
+            blockedMethod: BLOCKED_METHOD.manual,
         });
     }
 

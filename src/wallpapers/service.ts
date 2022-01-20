@@ -11,6 +11,9 @@ import { UnsplashService } from '@/wallpapers/modules/unsplash.service';
 import { WallpaperCacheSchema } from '@/wallpapers/schemas/wallpaperCache';
 import { PixabayService } from '@/wallpapers/modules/pixabay.service';
 import { PexelsService } from '@/wallpapers/modules/pexels.service';
+import { Interval } from '@nestjs/schedule';
+import { BlockedWallpaperSchema } from '@/wallpapers/schemas/blocked';
+import { BLOCKED_TYPE } from '@/wallpapers/entities/blocked';
 
 export type LiteWallpaper = Pick<Wallpaper, 'idInService' | 'service'>;
 
@@ -35,6 +38,8 @@ export class WallpapersService {
         private readonly rateModel: ReturnModelType<typeof RateWallpaperSchema>,
         @InjectModel(WallpaperCacheSchema)
         private readonly wallpaperCacheModel: ReturnModelType<typeof WallpaperCacheSchema>,
+        @InjectModel(BlockedWallpaperSchema)
+        private readonly blackListWallpaperModel: ReturnModelType<typeof BlockedWallpaperSchema>,
     ) {
         this.services = {
             [service.unsplash]: unsplashService,
@@ -177,5 +182,96 @@ export class WallpapersService {
             userId: user.id,
             id,
         });
+    }
+
+    @Interval(60 * 1000)
+    async handleCheckRates() {
+        this.logger.log('Start checking wallpapers rates...');
+
+        try {
+            const dislikeRates = await this.rateModel.find({
+                rate: rate.dislike,
+            });
+
+            if (dislikeRates.length < 5) {
+                this.logger.log(`Few wallpaper rates. Skip checking`);
+
+                return;
+            }
+
+            const ratesByWallpaper = {};
+
+            dislikeRates.forEach((rate) => {
+                if (!(rate.id in ratesByWallpaper))
+                    ratesByWallpaper[rate.id] = {
+                        service: rate.service,
+                        idInService: rate.idInService,
+                        count: 0,
+                    };
+
+                ratesByWallpaper[rate.id].count += 1;
+            });
+
+            const blocked = (
+                await Promise.all(
+                    Object.keys(ratesByWallpaper).map(async (wallpaperId) => {
+                        const wallpaperRate = ratesByWallpaper[wallpaperId];
+
+                        if (wallpaperRate.count > 5) {
+                            const wallpaper = await this.getWallpaper(wallpaperRate.service, wallpaperRate.idInService);
+
+                            return {
+                                id: wallpaperId,
+                                idInService: wallpaper.idInService,
+                                service: wallpaper.service,
+                                sourceLink: wallpaper.sourceLink,
+                                blockedType: BLOCKED_TYPE.wallpaper,
+                            };
+                        } else {
+                            return null;
+                        }
+                    }),
+                )
+            ).filter((isExist) => isExist);
+
+            await this.blackListWallpaperModel.insertMany(blocked);
+
+            this.logger.log(
+                `The wallpapers rates has been checked
+                Result:
+                Blocked: ${blocked.length}`,
+            );
+        } catch (e) {
+            this.logger.error(e);
+        }
+    }
+
+    @Interval(60 * 1000) // Clear cache every 1m
+    async handleClearCache() {
+        this.logger.log('Start clearing obsolete wallpaper cache...');
+
+        try {
+            const sitesRemove = await this.wallpaperCacheModel.find({
+                createDate: {
+                    $lte: new Date(),
+                },
+            });
+
+            await this.wallpaperCacheModel.deleteMany({
+                createDate: {
+                    $lte: new Date(),
+                },
+            });
+            const count = await this.wallpaperCacheModel.count();
+
+            this.logger.log(
+                `The wallpapers cache has been cleared
+                Result:
+                Removed outdated: ${sitesRemove.length}
+                In cache:         ${count}`,
+            );
+        } catch (e) {
+            this.logger.error(e);
+        }
     }
 }
