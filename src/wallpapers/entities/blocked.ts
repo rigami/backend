@@ -1,5 +1,5 @@
 import { IsDate, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { service } from '@/wallpapers/entities/wallpaper';
+import { WALLPAPER_SOURCE } from '@/wallpapers/entities/wallpaper';
 import { Expose } from 'class-transformer';
 
 export enum BLOCKED_TYPE {
@@ -16,11 +16,11 @@ export class BlockedWallpaper {
     @IsString() @IsOptional() readonly id?: string;
 
     @IsString()
-    readonly idInService: string;
+    readonly idInSource: string;
 
-    @IsEnum(service)
+    @IsEnum(WALLPAPER_SOURCE)
     @IsNotEmpty()
-    service;
+    source;
 
     @IsString()
     readonly sourceLink: string;

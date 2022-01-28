@@ -1,14 +1,14 @@
 import { Index, ModelOptions, Prop } from '@typegoose/typegoose';
-import { service, type } from '@/wallpapers/entities/wallpaper';
+import { WALLPAPER_SOURCE, type } from '@/wallpapers/entities/wallpaper';
 
 @ModelOptions({ options: { customName: 'wallpapers' } })
-@Index({ idInService: 1, service: 1 }, { unique: true })
+@Index({ idInSource: 1, source: 1 }, { unique: true })
 export class WallpaperCacheSchema {
     @Prop({ required: true, unique: true })
     id: string;
 
     @Prop({ required: true })
-    idInService: string;
+    idInSource: string;
 
     @Prop({ required: true })
     rawSrc: string;
@@ -37,8 +37,8 @@ export class WallpaperCacheSchema {
     @Prop()
     color: string;
 
-    @Prop({ required: true, enum: Object.keys(service) })
-    service: string;
+    @Prop({ required: true, enum: Object.keys(WALLPAPER_SOURCE) })
+    source: string;
 
     @Prop({ required: true, enum: Object.keys(type) })
     type: string;

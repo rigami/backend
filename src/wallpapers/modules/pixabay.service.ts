@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IWallpapersService } from '@/wallpapers/modules/service.interface';
-import { service, type, Wallpaper } from '@/wallpapers/entities/wallpaper';
+import { WALLPAPER_SOURCE, type, Wallpaper } from '@/wallpapers/entities/wallpaper';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
@@ -65,10 +65,10 @@ export class PixabayService implements IWallpapersService {
 
         return plainToClass(Wallpaper, {
             id: encodeInternalId({
-                idInService: raw.id,
-                service: service.pixabay,
+                idInSource: raw.id,
+                source: WALLPAPER_SOURCE.pixabay,
             }),
-            idInService: raw.id,
+            idInSource: raw.id,
             rawSrc: `${rawLink}&download=1`,
             fullSrc: `${fullLink}&download=1`,
             previewSrc: previewLink,
@@ -78,7 +78,7 @@ export class PixabayService implements IWallpapersService {
             authorAvatarSrc: authorAvatarSrc,
             description: raw.description,
             color: raw.color,
-            service: service.pixabay,
+            source: WALLPAPER_SOURCE.pixabay,
             type: type.video,
         });
     }

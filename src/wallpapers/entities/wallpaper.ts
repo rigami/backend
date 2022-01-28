@@ -1,6 +1,6 @@
 import { IsEnum, IsString } from 'class-validator';
 
-export enum service {
+export enum WALLPAPER_SOURCE {
     'unsplash' = 'unsplash',
     'pexels' = 'pexels',
     'pixabay' = 'pixabay',
@@ -13,7 +13,7 @@ export enum type {
 
 export class Wallpaper {
     @IsString() readonly id: string;
-    @IsString() readonly idInService: string;
+    @IsString() readonly idInSource: string;
 
     @IsString() readonly rawSrc: string;
     @IsString() readonly fullSrc: string;
@@ -26,6 +26,6 @@ export class Wallpaper {
     @IsString() readonly description: string;
     @IsString() readonly color: string;
 
-    @IsEnum(service) service = null;
+    @IsEnum(WALLPAPER_SOURCE) source = null;
     @IsEnum(type) type = null;
 }

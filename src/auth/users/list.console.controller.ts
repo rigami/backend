@@ -50,8 +50,8 @@ export class UsersListController {
         const sort = JSON.parse(query.sort);
 
         const mongoQuery = {
-            ...omit(filter, ['idInService']),
-            idInService: new RegExp(filter.idInService || '', 'i'),
+            ...omit(filter, ['idInSource']),
+            idInSource: new RegExp(filter.idInSource || '', 'i'),
         };
 
         const res = await this.userModel

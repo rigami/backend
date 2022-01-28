@@ -2,8 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from 'nestjs-typegoose';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { RateWallpaperSchema } from '@/wallpapers/schemas/rate';
-import { rate } from '@/wallpapers/entities/rate';
-import { service, type as WALLPAPER_TYPE, Wallpaper } from '@/wallpapers/entities/wallpaper';
+import { RATE } from '@/wallpapers/entities/rate';
+import { WALLPAPER_SOURCE, type as WALLPAPER_TYPE, Wallpaper } from '@/wallpapers/entities/wallpaper';
 import { User } from '@/auth/users/entities/user';
 import { plainToClass } from 'class-transformer';
 import base64url from 'base64url';
@@ -15,7 +15,7 @@ import { Interval } from '@nestjs/schedule';
 import { BlockedWallpaperSchema } from '@/wallpapers/schemas/blocked';
 import { BLOCKED_TYPE } from '@/wallpapers/entities/blocked';
 
-export type LiteWallpaper = Pick<Wallpaper, 'idInService' | 'service'>;
+export type LiteWallpaper = Pick<Wallpaper, 'idInSource' | 'source'>;
 
 export function decodeInternalId(internalId: string): LiteWallpaper {
     return plainToClass(Wallpaper, JSON.parse(base64url.decode(internalId)));
@@ -42,9 +42,9 @@ export class WallpapersService {
         private readonly blackListWallpaperModel: ReturnModelType<typeof BlockedWallpaperSchema>,
     ) {
         this.services = {
-            [service.unsplash]: unsplashService,
-            [service.pixabay]: pixabayService,
-            [service.pexels]: pexelsService,
+            [WALLPAPER_SOURCE.unsplash]: unsplashService,
+            [WALLPAPER_SOURCE.pixabay]: pixabayService,
+            [WALLPAPER_SOURCE.pexels]: pexelsService,
         };
     }
 
@@ -52,18 +52,18 @@ export class WallpapersService {
         await this.wallpaperCacheModel.create(wallpaper);
     }
 
-    async search(query: string, count: number, type: WALLPAPER_TYPE): Promise<any> {
-        this.logger.log(`Search wallpapers query:${query} count:${count} type:${type}...`);
+    async search(query: string, count: number, types: WALLPAPER_TYPE[] = [], user: User): Promise<any> {
+        this.logger.log(`Search wallpapers query:${query} count:${count} type:${types}...`);
 
         let wallpapers = [];
 
-        if (!type || type === WALLPAPER_TYPE.image) {
+        if (types.length === 0 || types.includes(WALLPAPER_TYPE.image)) {
             wallpapers = await this.unsplashService.search(query, count);
 
             this.logger.log(`Found ${wallpapers.length} in unsplash service...`);
         }
 
-        if (!type || type === WALLPAPER_TYPE.video) {
+        if (types.length === 0 || types.includes(WALLPAPER_TYPE.video)) {
             const halfCount = Math.ceil((count || 1) / 2);
 
             const [pexelsWallpapers, pixabayWallpapers] = await Promise.all([
@@ -102,18 +102,20 @@ export class WallpapersService {
         return wallpapers.sort(() => Math.random() - 0.5).slice(0, count);
     }
 
-    async random(query: string, count: number, type: WALLPAPER_TYPE): Promise<any> {
-        this.logger.log(`Search random wallpapers query:${query} count:${count} type:${type}...`);
+    async random(query: string, count: number, types: WALLPAPER_TYPE[] = [], user: User): Promise<any> {
+        this.logger.log(`Search random wallpapers query:${query} count:${count} type:${types}...`);
+
+        // const requestCount = count * 1.6;
 
         let wallpapers = [];
 
-        if (!type || type === WALLPAPER_TYPE.image) {
+        if (types.length === 0 || types.includes(WALLPAPER_TYPE.image)) {
             wallpapers = await this.unsplashService.getRandom(query, count);
 
             this.logger.log(`Found ${wallpapers.length} in unsplash service...`);
         }
 
-        if (!type || type === WALLPAPER_TYPE.video) {
+        if (types.length === 0 || types.includes(WALLPAPER_TYPE.video)) {
             const halfCount = Math.ceil((count || 1) / 2);
 
             const [pexelsWallpapers, pixabayWallpapers] = await Promise.all([
@@ -149,19 +151,30 @@ export class WallpapersService {
             }
         }
 
+        const blockedSystem = Promise.all(wallpapers.map(({ id }) => this.blackListWallpaperModel.findOne({ id })));
+        const blockedUser = Promise.all(
+            wallpapers.map(({ id }) => this.rateModel.findOne({ id, userId: user.id, rate: RATE.dislike })),
+        );
+        const likedUser = await this.rateModel.find({ userId: user.id, rate: RATE.like });
+
+        // wallpapers = wallpapers.filter();
+
         return wallpapers.sort(() => Math.random() - 0.5).slice(0, count);
     }
 
-    async getWallpaper(service: service, idInService: string): Promise<Wallpaper> {
+    async getWallpaper(source: WALLPAPER_SOURCE, idInSource: string): Promise<Wallpaper> {
         let wallpaper = await this.wallpaperCacheModel.findOne({
             id: encodeInternalId({
-                idInService,
-                service,
+                idInSource,
+                source,
             }),
         });
 
+        console.log('wallpaper in cache:', wallpaper);
+
         if (!wallpaper) {
-            wallpaper = await this.services[service].getById(idInService);
+            wallpaper = await this.services[source].getById(idInSource);
+            console.log('wallpaper in network:', wallpaper);
 
             await this.saveToCache(wallpaper);
         }
@@ -169,10 +182,19 @@ export class WallpapersService {
         return wallpaper;
     }
 
-    async setRate(id: string, rate: rate, user: User): Promise<void> {
+    async setRate(id: string, rate: RATE, user: User): Promise<void> {
+        this.logger.log('Get info about wallpaper', id);
+
+        console.log(decodeInternalId(id))
+
+        const wallpaper = await this.getWallpaper(decodeInternalId(id).source, decodeInternalId(id).idInSource);
+
         await this.rateModel.create({
             userId: user.id,
             id,
+            idInSource: wallpaper.idInSource,
+            source: wallpaper.source,
+            type: wallpaper.type,
             rate,
         });
     }
@@ -190,7 +212,7 @@ export class WallpapersService {
 
         try {
             const dislikeRates = await this.rateModel.find({
-                rate: rate.dislike,
+                rate: RATE.dislike,
             });
 
             if (dislikeRates.length < 5) {
@@ -204,8 +226,8 @@ export class WallpapersService {
             dislikeRates.forEach((rate) => {
                 if (!(rate.id in ratesByWallpaper))
                     ratesByWallpaper[rate.id] = {
-                        service: rate.service,
-                        idInService: rate.idInService,
+                        source: rate.source,
+                        idInSource: rate.idInSource,
                         count: 0,
                     };
 
@@ -218,12 +240,12 @@ export class WallpapersService {
                         const wallpaperRate = ratesByWallpaper[wallpaperId];
 
                         if (wallpaperRate.count > 5) {
-                            const wallpaper = await this.getWallpaper(wallpaperRate.service, wallpaperRate.idInService);
+                            const wallpaper = await this.getWallpaper(wallpaperRate.source, wallpaperRate.idInSource);
 
                             return {
                                 id: wallpaperId,
-                                idInService: wallpaper.idInService,
-                                service: wallpaper.service,
+                                idInSource: wallpaper.idInSource,
+                                source: wallpaper.source,
                                 sourceLink: wallpaper.sourceLink,
                                 blockedType: BLOCKED_TYPE.wallpaper,
                             };

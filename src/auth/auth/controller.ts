@@ -41,7 +41,9 @@ export class AuthController {
 
         const authToken = await this.authService.getAuthToken(user, device);
 
-        return { authToken };
+        const loginData = await this.authService.login(user, device);
+
+        return { authToken, ...loginData };
     }
 
     @UseGuards(LocalAuthGuard, RolesGuard, DevicesGuard)

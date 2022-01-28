@@ -53,8 +53,8 @@ export class CollectionsWallpapersController {
         const sort = JSON.parse(query.sort);
 
         const mongoQuery = {
-            ...omit(filter, ['idInService']),
-            idInService: new RegExp(filter.idInService || '', 'i'),
+            ...omit(filter, ['idInSource']),
+            idInSource: new RegExp(filter.idInSource || '', 'i'),
         };
 
         const res = await this.collectionWallpaperModel
@@ -80,19 +80,19 @@ export class CollectionsWallpapersController {
     @Post()
     @HttpCode(200)
     async createItem(
-        @Body() collection: Pick<CollectionWallpaper, 'service' | 'idInService' | 'collectionType'>,
+        @Body() collection: Pick<CollectionWallpaper, 'source' | 'idInSource' | 'collectionType'>,
         @CurUser() user: User,
     ) {
         console.log(collection, user);
 
-        const wallpaper = await this.wallpapersService.getWallpaper(collection.service, collection.idInService);
+        const wallpaper = await this.wallpapersService.getWallpaper(collection.source, collection.idInSource);
 
         console.log('wallpaper:', wallpaper);
 
         return this.collectionWallpaperModel.create({
             id: encodeInternalId({
-                idInService: collection.idInService,
-                service: collection.service,
+                idInSource: collection.idInSource,
+                source: collection.source,
             }),
             ...collection,
             ...wallpaper,

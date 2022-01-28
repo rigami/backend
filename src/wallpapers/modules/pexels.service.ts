@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IWallpapersService } from '@/wallpapers/modules/service.interface';
-import { service, type, Wallpaper } from '@/wallpapers/entities/wallpaper';
+import { WALLPAPER_SOURCE, type, Wallpaper } from '@/wallpapers/entities/wallpaper';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
@@ -55,10 +55,10 @@ export class PexelsService implements IWallpapersService {
 
         return plainToClass(Wallpaper, {
             id: encodeInternalId({
-                idInService: raw.id,
-                service: service.pexels,
+                idInSource: raw.id,
+                source: WALLPAPER_SOURCE.pexels,
             }),
-            idInService: raw.id,
+            idInSource: raw.id,
             rawSrc: rawLink,
             fullSrc: fullLink,
             previewSrc: raw.image,
@@ -68,7 +68,7 @@ export class PexelsService implements IWallpapersService {
             authorAvatarSrc: '',
             description: '',
             color: raw.avg_color || '',
-            service: service.pexels,
+            source: WALLPAPER_SOURCE.pexels,
             type: type.video,
         });
     }
@@ -128,7 +128,7 @@ export class PexelsService implements IWallpapersService {
     }
 
     async getById(id: string): Promise<Wallpaper> {
-        const response = await this.getData(`/videos/videos/id=${id}`);
+        const response = await this.getData(`/videos/videos/${id}`);
 
         return PexelsService.rawToEntity(response);
     }

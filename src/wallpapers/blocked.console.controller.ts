@@ -54,8 +54,8 @@ export class BlockedWallpapersController {
         const sort = JSON.parse(query.sort);
 
         const mongoQuery = {
-            ...omit(filter, ['idInService']),
-            idInService: new RegExp(filter.idInService || '', 'i'),
+            ...omit(filter, ['idInSource']),
+            idInSource: new RegExp(filter.idInSource || '', 'i'),
         };
 
         const res = await this.blackListWallpaperModel
@@ -83,8 +83,8 @@ export class BlockedWallpapersController {
     async createItem(@Body() entity: Omit<BlockedWallpaper, 'blockedMethod'>) {
         return this.blackListWallpaperModel.create({
             id: encodeInternalId({
-                idInService: entity.idInService,
-                service: entity.service,
+                idInSource: entity.idInSource,
+                source: entity.source,
             }),
             ...entity,
             blockedMethod: BLOCKED_METHOD.manual,

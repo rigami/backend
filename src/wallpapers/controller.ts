@@ -4,7 +4,7 @@ import { type } from '@/wallpapers/entities/wallpaper';
 import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
 import { User } from '@/auth/users/entities/user';
 import { CurUser } from '@/auth/auth/utils/currentUser.param.decorator';
-import { rate } from './entities/rate';
+import { RATE } from './entities/rate';
 
 @Controller('v1/wallpapers')
 export class WallpapersController {
@@ -12,37 +12,38 @@ export class WallpapersController {
 
     constructor(private wallpapersService: WallpapersService) {}
 
-    // @UseGuards(JwtAccessAuthGuard)
+    @UseGuards(JwtAccessAuthGuard)
     @Get('search')
     async search(
-        @Query('type') typeWallpaper: type,
+        @Query('type') typeWallpaper: type[],
         @Query('query') query: string,
         @Query('count') count: number,
-        // @CurUser() user: User,
+        @CurUser() user: User,
     ) {
-        return await this.wallpapersService.search(query, count || 10, typeWallpaper);
+        return await this.wallpapersService.search(query, count || 10, typeWallpaper, user);
     }
 
+    @UseGuards(JwtAccessAuthGuard)
     @Get('random')
     async random(
-        @Query('type') typeWallpaper: type,
+        @Query('type') typeWallpaper: type[],
         @Query('query') query: string,
         @Query('count') count: number,
-        // @CurUser() user: User,
+        @CurUser() user: User,
     ) {
-        return await this.wallpapersService.random(query, count || 10, typeWallpaper);
+        return await this.wallpapersService.random(query, count || 10, typeWallpaper, user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
     @Post(':id/like')
     async like(@Param('id') id: string, @CurUser() user: User) {
-        await this.wallpapersService.setRate(id, rate.like, user);
+        await this.wallpapersService.setRate(id, RATE.like, user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
     @Post(':id/dislike')
     async dislike(@Param('id') id: string, @CurUser() user: User) {
-        await this.wallpapersService.setRate(id, rate.dislike, user);
+        await this.wallpapersService.setRate(id, RATE.dislike, user);
     }
 
     @UseGuards(JwtAccessAuthGuard)

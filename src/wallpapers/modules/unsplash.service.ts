@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { IWallpapersService } from '@/wallpapers/modules/service.interface';
-import { service, type, Wallpaper } from '@/wallpapers/entities/wallpaper';
+import { type, Wallpaper, WALLPAPER_SOURCE } from '@/wallpapers/entities/wallpaper';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
@@ -32,10 +32,10 @@ export class UnsplashService implements IWallpapersService {
     private static rawToEntity(raw): Wallpaper {
         return plainToClass(Wallpaper, {
             id: encodeInternalId({
-                idInService: raw.id,
-                service: service.unsplash,
+                idInSource: raw.id,
+                source: WALLPAPER_SOURCE.unsplash,
             }),
-            idInService: raw.id,
+            idInSource: raw.id,
             rawSrc: raw.urls.raw,
             fullSrc: raw.urls.full,
             previewSrc: raw.urls.small,
@@ -45,7 +45,7 @@ export class UnsplashService implements IWallpapersService {
             authorAvatarSrc: raw.user.profile_image.medium,
             description: raw.description,
             color: raw.color,
-            service: service.unsplash,
+            source: WALLPAPER_SOURCE.unsplash,
             type: type.image,
         });
     }
@@ -73,6 +73,6 @@ export class UnsplashService implements IWallpapersService {
     }
 
     async markDownload(wallpaper: LiteWallpaper): Promise<void> {
-        await this.getData(`/photos/${wallpaper.idInService}/download`);
+        await this.getData(`/photos/${wallpaper.idInSource}/download`);
     }
 }

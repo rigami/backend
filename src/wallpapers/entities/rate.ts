@@ -1,15 +1,15 @@
 import { IsEnum, IsNotEmpty, IsString, IsUUID } from 'class-validator';
-import { service, type } from '@/wallpapers/entities/wallpaper';
+import { WALLPAPER_SOURCE, type } from '@/wallpapers/entities/wallpaper';
 
-export enum rate {
+export enum RATE {
     'like' = 'like',
     'dislike' = 'dislike',
 }
 
 export class RateWallpaper {
     @IsUUID() readonly userId: string;
-    @IsString() readonly idInService: string;
-    @IsEnum(service) @IsNotEmpty() service;
+    @IsString() readonly idInSource: string;
+    @IsEnum(WALLPAPER_SOURCE) @IsNotEmpty() WALLPAPER_SOURCE;
     @IsEnum(type) @IsNotEmpty() type;
-    @IsEnum(rate) @IsNotEmpty() rate;
+    @IsEnum(RATE) @IsNotEmpty() rate;
 }
