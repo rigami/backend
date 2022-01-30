@@ -42,6 +42,8 @@ export class WallpapersService {
         private readonly wallpaperCacheModel: ReturnModelType<typeof WallpaperCacheSchema>,
         @InjectModel(BlockedWallpaperSchema)
         private readonly blackListWallpaperModel: ReturnModelType<typeof BlockedWallpaperSchema>,
+        @InjectModel(CollectionWallpaperSchema)
+        private readonly collectionWallpaperModel: ReturnModelType<typeof CollectionWallpaperSchema>,
     ) {
         this.services = {
             [WALLPAPER_SOURCE.unsplash]: unsplashService,
@@ -56,6 +58,58 @@ export class WallpapersService {
             { $set: wallpaper },
             { upsert: true, new: true },
         );
+    }
+
+    async checkIsBlocked(wallpaper: Wallpaper, user: User, blockedBy = 'all'): Promise<boolean> {
+        if (blockedBy === 'all' || blockedBy === 'system') {
+            const blockedBySystem = await this.blackListWallpaperModel.findOne({ id: wallpaper.id });
+
+            // console.log('check system blocked:', blockedBySystem);
+
+            if (blockedBySystem) return true;
+        }
+
+        if (blockedBy === 'all' || blockedBy === 'user') {
+            const blockedByUser = await this.rateModel.findOne({
+                id: wallpaper.id,
+                userId: user.id,
+                rate: RATE.dislike,
+            });
+
+            // console.log('check user blocked:', blockedByUser);
+
+            if (blockedByUser) return true;
+        }
+
+        return false;
+    }
+
+    async collection(collection: string, count: number, types: WALLPAPER_TYPE[] = [], user: User): Promise<any> {
+        this.logger.log(`Search random wallpapers from collection:${collection} count:${count} type:${types}...`);
+
+        let wallpapers = await this.collectionWallpaperModel.aggregate([
+            {
+                $match: {
+                    collectionType: collection,
+                    type: types,
+                },
+            },
+            { $sample: { size: count } },
+        ]);
+
+        wallpapers = (
+            await Promise.all(
+                wallpapers.map(async (wallpaper) => {
+                    const isBlocked = await this.checkIsBlocked(wallpaper, user, 'all');
+
+                    if (isBlocked) return null;
+
+                    return wallpaper;
+                }),
+            )
+        ).filter(Boolean);
+
+        return wallpapers;
     }
 
     async search(query: string, count: number, types: WALLPAPER_TYPE[] = [], user: User): Promise<any> {
@@ -157,11 +211,17 @@ export class WallpapersService {
             }
         }
 
-        const blockedSystem = Promise.all(wallpapers.map(({ id }) => this.blackListWallpaperModel.findOne({ id })));
-        const blockedUser = Promise.all(
-            wallpapers.map(({ id }) => this.rateModel.findOne({ id, userId: user.id, rate: RATE.dislike })),
-        );
-        const likedUser = await this.rateModel.find({ userId: user.id, rate: RATE.like });
+        wallpapers = (
+            await Promise.all(
+                wallpapers.map(async (wallpaper) => {
+                    const isBlocked = await this.checkIsBlocked(wallpaper, user, user ? 'all' : 'system');
+
+                    if (isBlocked) return null;
+
+                    return wallpaper;
+                }),
+            )
+        ).filter(Boolean);
 
         // wallpapers = wallpapers.filter();
 
@@ -169,6 +229,8 @@ export class WallpapersService {
     }
 
     async getWallpaper(source: WALLPAPER_SOURCE, idInSource: string): Promise<Wallpaper> {
+        this.logger.log(`Get wallpaper source:${source} idInSource:${idInSource}`);
+
         let wallpaper = await this.wallpaperCacheModel.findOne({
             id: encodeInternalId({
                 idInSource,

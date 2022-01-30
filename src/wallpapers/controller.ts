@@ -31,7 +31,18 @@ export class WallpapersController {
         @Query('count') count: number,
         @CurUser() user: User,
     ) {
-        return await this.wallpapersService.random(query, count || 10, typeWallpaper, user);
+        return await this.wallpapersService.random(query, +count || 10, typeWallpaper, user);
+    }
+
+    @UseGuards(JwtAccessAuthGuard)
+    @Get('collection/:collectionName')
+    async collection(
+        @Param('collectionName') collectionName: string,
+        @Query('type') typeWallpaper: type[],
+        @Query('count') count: number,
+        @CurUser() user: User,
+    ) {
+        return await this.wallpapersService.collection(collectionName, +count || 10, typeWallpaper, user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
