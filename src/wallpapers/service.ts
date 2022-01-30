@@ -185,7 +185,7 @@ export class WallpapersService {
     async setRate(id: string, rate: RATE, user: User): Promise<void> {
         this.logger.log('Get info about wallpaper', id);
 
-        console.log(decodeInternalId(id))
+        console.log(decodeInternalId(id));
 
         const wallpaper = await this.getWallpaper(decodeInternalId(id).source, decodeInternalId(id).idInSource);
 
@@ -204,6 +204,12 @@ export class WallpapersService {
             userId: user.id,
             id,
         });
+    }
+
+    async markDownload(id: string, user: User): Promise<void> {
+        const wallpaper = decodeInternalId(id);
+
+        await this.services[wallpaper.source].markDownload(wallpaper);
     }
 
     @Interval(60 * 1000)

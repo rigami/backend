@@ -51,4 +51,10 @@ export class WallpapersController {
     async resetRate(@Param('id') id: string, @CurUser() user: User) {
         await this.wallpapersService.resetRate(id, user);
     }
+
+    @UseGuards(JwtAccessAuthGuard)
+    @Post(':id/mark-download')
+    async markDownload(@Param('id') id: string, @CurUser() user: User) {
+        await this.wallpapersService.markDownload(id, user);
+    }
 }
