@@ -5,6 +5,7 @@ export default () => ({
         port: parseInt(process.env.DATABASE_PORT, 10) || 27017,
     },
     wallpapers: {
+        blockingThreshold: 1,
         unsplash: {
             apiKey: process.env.WALLPAPERS_UNSPLASH_APIKEY || 'aNKMtY5TfBYTWYmiNfPQK-uU7xteo5mxOOgdvTd4f18',
         },

@@ -13,7 +13,8 @@ import { PixabayService } from '@/wallpapers/modules/pixabay.service';
 import { PexelsService } from '@/wallpapers/modules/pexels.service';
 import { Interval } from '@nestjs/schedule';
 import { BlockedWallpaperSchema } from '@/wallpapers/schemas/blocked';
-import { BLOCKED_TYPE } from '@/wallpapers/entities/blocked';
+import { BLOCKED_METHOD, BLOCKED_TYPE } from '@/wallpapers/entities/blocked';
+import { ConfigService } from '@nestjs/config';
 
 export type LiteWallpaper = Pick<Wallpaper, 'idInSource' | 'source'>;
 
@@ -34,6 +35,7 @@ export class WallpapersService {
         private unsplashService: UnsplashService,
         private pixabayService: PixabayService,
         private pexelsService: PexelsService,
+        private configService: ConfigService,
         @InjectModel(RateWallpaperSchema)
         private readonly rateModel: ReturnModelType<typeof RateWallpaperSchema>,
         @InjectModel(WallpaperCacheSchema)
@@ -49,7 +51,11 @@ export class WallpapersService {
     }
 
     async saveToCache(wallpaper: Wallpaper) {
-        await this.wallpaperCacheModel.create(wallpaper);
+        await this.wallpaperCacheModel.findOneAndUpdate(
+            { id: wallpaper.id },
+            { $set: wallpaper },
+            { upsert: true, new: true },
+        );
     }
 
     async search(query: string, count: number, types: WALLPAPER_TYPE[] = [], user: User): Promise<any> {
@@ -189,20 +195,28 @@ export class WallpapersService {
 
         const wallpaper = await this.getWallpaper(decodeInternalId(id).source, decodeInternalId(id).idInSource);
 
-        await this.rateModel.create({
-            userId: user.id,
-            id,
-            idInSource: wallpaper.idInSource,
-            source: wallpaper.source,
-            type: wallpaper.type,
-            rate,
-        });
+        await this.rateModel.findOneAndUpdate(
+            { userId: user.id, id, idInSource: wallpaper.idInSource, source: wallpaper.source },
+            {
+                $set: {
+                    userId: user.id,
+                    id,
+                    idInSource: wallpaper.idInSource,
+                    source: wallpaper.source,
+                    type: wallpaper.type,
+                    rate,
+                },
+            },
+            { upsert: true, new: true },
+        );
     }
 
     async resetRate(id: string, user: User): Promise<void> {
         await this.rateModel.deleteOne({
             userId: user.id,
             id,
+            idInSource: decodeInternalId(id).idInSource,
+            source: decodeInternalId(id).source,
         });
     }
 
@@ -216,12 +230,14 @@ export class WallpapersService {
     async handleCheckRates() {
         this.logger.log('Start checking wallpapers rates...');
 
+        const blockingThreshold = this.configService.get<number>('wallpapers.blockingThreshold');
+
         try {
             const dislikeRates = await this.rateModel.find({
                 rate: RATE.dislike,
             });
 
-            if (dislikeRates.length < 5) {
+            if (dislikeRates.length < blockingThreshold) {
                 this.logger.log(`Few wallpaper rates. Skip checking`);
 
                 return;
@@ -245,16 +261,25 @@ export class WallpapersService {
                     Object.keys(ratesByWallpaper).map(async (wallpaperId) => {
                         const wallpaperRate = ratesByWallpaper[wallpaperId];
 
-                        if (wallpaperRate.count > 5) {
+                        if (wallpaperRate.count >= blockingThreshold) {
                             const wallpaper = await this.getWallpaper(wallpaperRate.source, wallpaperRate.idInSource);
 
-                            return {
+                            const blockedWallpaper = {
                                 id: wallpaperId,
                                 idInSource: wallpaper.idInSource,
                                 source: wallpaper.source,
                                 sourceLink: wallpaper.sourceLink,
                                 blockedType: BLOCKED_TYPE.wallpaper,
+                                blockedMethod: BLOCKED_METHOD.automatic,
                             };
+
+                            await this.blackListWallpaperModel.findOneAndUpdate(
+                                { id: blockedWallpaper.id },
+                                { $set: blockedWallpaper },
+                                { upsert: true, new: true },
+                            );
+
+                            return blockedWallpaper;
                         } else {
                             return null;
                         }
@@ -262,7 +287,10 @@ export class WallpapersService {
                 )
             ).filter((isExist) => isExist);
 
-            await this.blackListWallpaperModel.insertMany(blocked);
+            await this.rateModel.deleteMany({
+                id: blocked.map(({ id }) => id),
+                rate: RATE.dislike,
+            });
 
             this.logger.log(
                 `The wallpapers rates has been checked
