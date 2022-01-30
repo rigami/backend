@@ -15,6 +15,7 @@ import { Interval } from '@nestjs/schedule';
 import { BlockedWallpaperSchema } from '@/wallpapers/schemas/blocked';
 import { BLOCKED_METHOD, BLOCKED_TYPE } from '@/wallpapers/entities/blocked';
 import { ConfigService } from '@nestjs/config';
+import { CollectionWallpaperSchema } from '@/wallpapers/schemas/collection';
 
 export type LiteWallpaper = Pick<Wallpaper, 'idInSource' | 'source'>;
 
@@ -30,6 +31,7 @@ export function encodeInternalId(liteWallpaper: LiteWallpaper): string {
 export class WallpapersService {
     private readonly logger = new Logger(WallpapersService.name);
     private services = {};
+    private lastRequestFromNetwork = {};
 
     constructor(
         private unsplashService: UnsplashService,
@@ -52,10 +54,10 @@ export class WallpapersService {
         };
     }
 
-    async saveToCache(wallpaper: Wallpaper) {
+    async saveToCache(wallpaper: Wallpaper, query = '') {
         await this.wallpaperCacheModel.findOneAndUpdate(
             { id: wallpaper.id },
-            { $set: wallpaper },
+            { $set: { ...wallpaper, query } },
             { upsert: true, new: true },
         );
     }
@@ -159,15 +161,72 @@ export class WallpapersService {
             }
         }
 
+        wallpapers = (
+            await Promise.all(
+                wallpapers.map(async (wallpaper) => {
+                    const isBlocked = await this.checkIsBlocked(wallpaper, user);
+
+                    if (isBlocked) return null;
+
+                    return wallpaper;
+                }),
+            )
+        ).filter(Boolean);
+
+        for await (const wallpaper of wallpapers) {
+            await this.saveToCache(wallpaper, query);
+        }
+
         return wallpapers.sort(() => Math.random() - 0.5).slice(0, count);
     }
 
-    async random(query: string, count: number, types: WALLPAPER_TYPE[] = [], user: User): Promise<any> {
+    async random(
+        query: string,
+        count: number,
+        types: WALLPAPER_TYPE[] = [],
+        user: User,
+        withoutCache = false,
+    ): Promise<any> {
         this.logger.log(`Search random wallpapers query:${query} count:${count} type:${types}...`);
 
-        // const requestCount = count * 1.6;
-
         let wallpapers = [];
+
+        if (!withoutCache) {
+            const countInCache = await this.wallpaperCacheModel.find({ query, type: types }).count();
+            console.log('countInCache:', countInCache);
+
+            if (countInCache > count * 3) {
+                this.logger.log(`Cache warmed up. Getting random wallpapers from cache...`);
+
+                wallpapers = await this.wallpaperCacheModel.aggregate([
+                    {
+                        $match: {
+                            query,
+                            type: types,
+                        },
+                    },
+                    { $sample: { size: count } },
+                ]);
+
+                const requestDelayThreshold = this.configService.get<number>('wallpapers.requestDelayThreshold') || 0;
+
+                if ((this.lastRequestFromNetwork[query]?.timestamp || 0) + requestDelayThreshold < Date.now()) {
+                    this.lastRequestFromNetwork[query] = {
+                        timestamp: Date.now(),
+                        requestFetch: true,
+                    };
+                }
+
+                return wallpapers;
+            } else {
+                this.logger.log(`Cache cold. Getting random wallpapers from network...`);
+            }
+        }
+
+        this.lastRequestFromNetwork[query] = {
+            timestamp: Date.now(),
+            requestFetch: false,
+        };
 
         if (types.length === 0 || types.includes(WALLPAPER_TYPE.image)) {
             wallpapers = await this.unsplashService.getRandom(query, count);
@@ -223,7 +282,9 @@ export class WallpapersService {
             )
         ).filter(Boolean);
 
-        // wallpapers = wallpapers.filter();
+        for await (const wallpaper of wallpapers) {
+            await this.saveToCache(wallpaper, query);
+        }
 
         return wallpapers.sort(() => Math.random() - 0.5).slice(0, count);
     }
@@ -286,6 +347,40 @@ export class WallpapersService {
         const wallpaper = decodeInternalId(id);
 
         await this.services[wallpaper.source].markDownload(wallpaper);
+    }
+
+    @Interval(60 * 1000)
+    handleRequest() {
+        const requests = Object.keys(this.lastRequestFromNetwork)
+            .map((query) => ({
+                query,
+                ...this.lastRequestFromNetwork[query],
+            }))
+            .sort((requestA, requestB) => {
+                if (requestA.requestFetch && !requestB.requestFetch) {
+                    return -1;
+                } else if (!requestA.requestFetch && requestB.requestFetch) {
+                    return 1;
+                }
+
+                if (requestA.timestamp > requestB.timestamp) {
+                    return -1;
+                } else if (requestA.timestamp < requestB.timestamp) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            })
+            .filter((request) => request.requestFetch)
+            .slice(0, 5);
+
+        requests.forEach((request) => {
+            this.logger.log(`Request query:${request.query} to warm up the cache`);
+
+            this.random(request.query, 50, [], null, true).finally(() => {
+                this.logger.log(`Request query:${request.query} to warm up the cache is done`);
+            });
+        });
     }
 
     @Interval(60 * 1000)
@@ -368,16 +463,18 @@ export class WallpapersService {
     async handleClearCache() {
         this.logger.log('Start clearing obsolete wallpaper cache...');
 
+        const lifetime = this.configService.get<number>('wallpapers.cacheLifetime') || 0;
+
         try {
             const sitesRemove = await this.wallpaperCacheModel.find({
                 createDate: {
-                    $lte: new Date(),
+                    $lte: new Date(Date.now() - lifetime),
                 },
             });
 
             await this.wallpaperCacheModel.deleteMany({
                 createDate: {
-                    $lte: new Date(),
+                    $lte: new Date(Date.now() - lifetime),
                 },
             });
             const count = await this.wallpaperCacheModel.count();

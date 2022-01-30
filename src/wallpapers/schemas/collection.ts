@@ -1,9 +1,9 @@
 import { Index, ModelOptions, Prop } from '@typegoose/typegoose';
-import { WallpaperCacheSchema } from '@/wallpapers/schemas/wallpaperCache';
+import { WallpaperSchema } from '@/wallpapers/schemas/wallpaper';
 
 @ModelOptions({ options: { customName: 'collection-wallpapers' } })
 @Index({ idInSource: 1, service: 1, collectionType: 1 }, { unique: true })
-export class CollectionWallpaperSchema extends WallpaperCacheSchema {
+export class CollectionWallpaperSchema extends WallpaperSchema {
     @Prop({ required: true })
     collectionType: string;
 

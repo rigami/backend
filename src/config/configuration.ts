@@ -6,6 +6,8 @@ export default () => ({
     },
     wallpapers: {
         blockingThreshold: 1,
+        cacheLifetime: 60 * 60 * 1000,
+        requestDelayThreshold: 60 * 1000,
         unsplash: {
             apiKey: process.env.WALLPAPERS_UNSPLASH_APIKEY || 'aNKMtY5TfBYTWYmiNfPQK-uU7xteo5mxOOgdvTd4f18',
         },

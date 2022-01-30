@@ -20,7 +20,7 @@ export class WallpapersController {
         @Query('count') count: number,
         @CurUser() user: User,
     ) {
-        return await this.wallpapersService.search(query, count || 10, typeWallpaper, user);
+        return await this.wallpapersService.search(query, +count || 10, typeWallpaper, user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
