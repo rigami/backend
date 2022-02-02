@@ -9,6 +9,7 @@ import { AuthController } from './controller';
 import { JwtRefreshStrategy } from './strategies/jwt/refresh.strategy';
 import { DevicesModule } from '@/auth/devices/module';
 import { JwtAccessStrategy } from '@/auth/auth/strategies/jwt/access.strategy';
+import { JwtLoginStrategy } from '@/auth/auth/strategies/jwt/login.strategy';
 
 @Module({
     imports: [
@@ -19,7 +20,7 @@ import { JwtAccessStrategy } from '@/auth/auth/strategies/jwt/access.strategy';
             secret: jwtConstants.secret,
         }),
     ],
-    providers: [AuthService, JwtRefreshStrategy, JwtAccessStrategy, LocalStrategy],
+    providers: [AuthService, JwtRefreshStrategy, JwtAccessStrategy, JwtLoginStrategy, LocalStrategy],
     controllers: [AuthController],
     exports: [AuthService],
 })

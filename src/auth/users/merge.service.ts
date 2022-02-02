@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { User } from './entities/user';
+import { ROLE, User } from './entities/user';
 import { InjectModel } from 'nestjs-typegoose';
 import { UserMergeRequestSchema } from './schemas/userMergeRequest';
 import { ReturnModelType } from '@typegoose/typegoose';
@@ -10,6 +10,7 @@ import { DevicesService } from '@/auth/devices/service';
 import { SSEService } from '@/utils/sse/service';
 import { AuthService } from '@/auth/auth/service';
 import { Device } from '@/auth/devices/entities/device';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MergeUsersService {
@@ -20,14 +21,16 @@ export class MergeUsersService {
         private usersService: UsersService,
         private devicesService: DevicesService,
         private sseService: SSEService,
+        private configService: ConfigService,
         @InjectModel(UserMergeRequestSchema)
         private readonly mergeUserRequestModel: ReturnModelType<typeof UserMergeRequestSchema>,
     ) {}
 
     async createMergeRequest(user: User, device: Device) {
         let request;
+        const codeLifetime = this.configService.get<number>('mergeCodeLifetime');
         const code = generateMergeCode(6);
-        const expiredDate = new Date(Date.now() + 10 * 60 * 1000);
+        const expiredDate = new Date(Date.now() + codeLifetime);
 
         try {
             request = await this.mergeUserRequestModel.create({
@@ -55,26 +58,29 @@ export class MergeUsersService {
             }
         }
 
-        return { code: request.code };
+        return { code: request.code, expiredDate };
     }
 
     async createAndWatchMergeRequest(user: User, device: Device) {
-        this.logger.log(`Create merge request by user id:${user.id} isTemp:${user.isTemp}...`);
+        this.logger.log(`Create merge request by user id:${user.id} role:${user.role}...`);
+        const codeLifetime = this.configService.get<number>('mergeCodeLifetime');
 
         const request = await this.createMergeRequest(user, device);
+
+        this.sseService.closeQueue('merge-request', user.id);
 
         const queue = this.sseService.createQueue('merge-request', user.id);
 
         setTimeout(() => {
             try {
-                if (user.isTemp) {
-                    this.sseService.addEvent('merge-request', user.id, {
-                        type: 'code',
-                        data: { code: request.code, requestId: user.id },
-                    });
-                } else {
-                    this.sseService.addEvent('merge-request', user.id, { type: 'code', data: { code: request.code } });
-                }
+                this.sseService.addEvent('merge-request', user.id, {
+                    type: 'code',
+                    data: {
+                        code: request.code,
+                        maxExpiredTimeout: codeLifetime,
+                        expiredTimeout: request.expiredDate.valueOf() - Date.now(),
+                    },
+                });
             } catch (e) {
                 this.sseService.closeQueue('merge-request', user.id);
             }
@@ -102,87 +108,81 @@ export class MergeUsersService {
             throw new Error('SAME_DEVICE');
         }
 
-        if (request.mergedUserIsTemp && applyUser.isTemp) {
-            // Create virtual user and login both devices
+        if (applyUser.id === request.mergedUserId) {
+            throw new Error('SAME_USER');
+        }
 
-            const user = await this.usersService.createVirtual();
+        let masterUser;
+        let masterDevice;
+        let mergedUser;
+        let mergedDevice;
 
-            this.sseService.addEvent('merge-request', request.mergedUserId, {
-                type: 'done-merge',
-                data: {
-                    action: 'login',
-                    newUsername: user.username,
-                    newPassword: user.password,
-                },
-            });
-            return {
-                action: 'login',
-                newUsername: user.username,
-                newPassword: user.password,
-            };
-        } else if (request.mergedUserIsTemp && !applyUser.isTemp) {
-            // Login request user by apply user credentials
+        const requestedUser = await this.usersService.findById(request.mergedUserId);
 
-            const user = await this.usersService.findById(applyUser.id);
+        if (requestedUser.role !== ROLE.virtual_user && applyUser.role === ROLE.virtual_user) {
+            // Login apply user by requested user credentials
 
-            this.sseService.addEvent('merge-request', request.mergedUserId, {
-                type: 'done-merge',
-                data: {
-                    action: 'login',
-                    newUsername: user.username,
-                    newPassword: user.password,
-                },
-            });
-            return { action: 'confirm' };
-        } else if (!request.mergedUserIsTemp && applyUser.isTemp) {
-            // Login apply user by request user credentials
+            masterUser = await this.usersService.findById(request.mergedUserId);
+            mergedUser = await this.usersService.findById(applyUser.id);
 
-            const user = await this.usersService.findById(request.mergedUserId);
-
-            this.sseService.addEvent('merge-request', request.mergedUserId, {
-                type: 'done-merge',
-                data: { action: 'confirm' },
-            });
-            return {
-                action: 'login',
-                newUsername: user.username,
-                newPassword: user.password,
-            };
+            mergedDevice = await this.devicesService.findById(deviceApplyUser.id);
+            masterDevice = await this.devicesService.findById(request.mergedFromDeviceId);
         } else {
-            // Merge request user to apply user and login request user by apply user credentials
+            // Merge request user to apply user and login requested user by apply user credentials
 
-            if (applyUser.id === request.mergedUserId) {
-                throw new Error('SAME_USER');
-            }
+            masterUser = await this.usersService.findById(applyUser.id);
+            mergedUser = await this.usersService.findById(request.mergedUserId);
 
-            const masterUser = await this.usersService.findById(applyUser.id);
-            const mergedUser = await this.usersService.findById(request.mergedUserId);
+            masterDevice = await this.devicesService.findById(deviceApplyUser.id);
+            mergedDevice = await this.devicesService.findById(request.mergedFromDeviceId);
+        }
 
-            if (!mergedUser) {
-                throw new Error('NOT_EXIST_MERGED_USER');
-            }
+        if (!mergedUser) {
+            throw new Error('NOT_EXIST_MERGED_USER');
+        }
 
-            this.logger.log(`Start merge request user id:${mergedUser.id} into user id:${masterUser.id}...`);
+        if (!masterUser) {
+            throw new Error('NOT_EXIST_MASTER_USER');
+        }
 
-            // TODO Merge mergedUser into masterUser
+        this.logger.log(`Start merge request user id:${mergedUser.id} into user id:${masterUser.id}...`);
 
-            await this.devicesService.changeOwnerByUserId(mergedUser.id, masterUser.id);
+        // TODO Merge mergedUser into masterUser
 
-            this.logger.log(`Done merge user id:${mergedUser.id} into user id:${masterUser.id}...`);
+        this.logger.log(`Change owner for all devices by user id:${mergedUser.id} to user id:${masterUser.id}...`);
 
-            await this.usersService.deleteById(request.mergedUserId);
-            this.logger.log(`Remove user id:${mergedUser.id}...`);
+        await this.devicesService.changeOwnerByUserId(mergedUser.id, masterUser.id);
 
+        this.logger.log(`Done merge user id:${mergedUser.id} into user id:${masterUser.id}...`);
+
+        await this.usersService.deleteById(mergedUser.id);
+        this.logger.log(`Remove user id:${mergedUser.id}...`);
+
+        mergedDevice = await this.devicesService.findById(mergedDevice.id);
+        const authToken = await this.authService.getAuthToken(masterUser, mergedDevice);
+
+        if (request.mergedUserId === mergedUser.id) {
             this.sseService.addEvent('merge-request', request.mergedUserId, {
                 type: 'done-merge',
                 data: {
-                    action: 'login',
-                    newUsername: masterUser.username,
-                    newPassword: masterUser.password,
+                    action: 'login/jwt',
+                    authToken,
                 },
             });
 
             return { action: 'confirm' };
+        } else {
+            this.sseService.addEvent('merge-request', request.mergedUserId, {
+                type: 'done-merge',
+                data: {
+                    action: 'confirm',
+                },
+            });
+
+            return {
+                action: 'login/jwt',
+                authToken,
+            };
         }
     }
 

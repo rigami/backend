@@ -14,6 +14,10 @@ export class SSEService {
     createQueue(queue: string, userId: string) {
         const subject = new Subject<MessageEvent>();
 
+        if (this.events.has(`${userId}[${queue}]`)) {
+            return this.events.get(`${userId}[${queue}]`).asObservable();
+        }
+
         this.events.set(`${userId}[${queue}]`, subject);
 
         return subject.asObservable();

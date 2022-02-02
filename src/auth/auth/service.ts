@@ -47,6 +47,8 @@ export class AuthService {
     }
 
     async login(user: User, device: Device) {
+        device = device && (await this.devicesService.findById(device.id));
+
         if (!device || !user || device.holderUserId !== user.id) {
             throw new Error(`Not signed device for user.id:${user.id}`);
         }

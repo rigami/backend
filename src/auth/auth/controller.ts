@@ -43,7 +43,7 @@ export class AuthController {
 
         const loginData = await this.authService.login(user, device);
 
-        return { authToken, ...loginData };
+        return { authToken, ...loginData, deviceSign: device.sign };
     }
 
     @UseGuards(LocalAuthGuard, RolesGuard, DevicesGuard)

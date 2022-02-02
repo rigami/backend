@@ -8,7 +8,7 @@ import { Credentials } from '@/auth/auth/entities/credentials';
 import { ROLE } from '@/auth/users/entities/user';
 
 @Injectable()
-export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-login') {
+export class JwtLoginStrategy extends PassportStrategy(Strategy, 'jwt-login') {
     constructor(private deviceService: DevicesService, private userService: UsersService) {
         super({
             jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -19,17 +19,25 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-login') {
     }
 
     async validate(request: Request, payload: any): Promise<Credentials> {
+
+        console.log('validate by jwt login strategy payload:', request.headers, payload)
+
         if (payload.tokenType !== 'authToken' || !request.headers['device-sign']) {
             throw new UnauthorizedException();
         }
 
         const user = await this.userService.findById(payload.sub);
 
+
+        console.log('validate by jwt login strategy user:', user)
+
         if (!user || user.role !== ROLE.virtual_user) {
             throw new BadRequestException();
         }
 
         const device = await this.deviceService.findById(payload.deviceSub);
+
+        console.log('validate by jwt login strategy device:', device)
 
         if (!device || device.holderUserId !== user.id || request.headers['device-sign'] !== device.sign) {
             throw new UnauthorizedException();
@@ -45,6 +53,7 @@ export class JwtAccessStrategy extends PassportStrategy(Strategy, 'jwt-login') {
                 id: device.id,
                 userAgent: device.userAgent,
                 type: device.type,
+                sign: device.sign,
                 platform: device.platform,
                 isVerify: true,
             },

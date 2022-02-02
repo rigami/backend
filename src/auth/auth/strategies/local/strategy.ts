@@ -45,6 +45,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
                 id: device?.id,
                 userAgent: device?.userAgent || request.headers['user-agent'],
                 type: device?.type || request.headers['device-type'],
+                sign: device?.sign || request.headers['device-sign'],
                 platform: device?.platform || request.headers['device-platform'],
                 isVerify: isVerifyDevice,
             },

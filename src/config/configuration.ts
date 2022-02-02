@@ -4,6 +4,7 @@ export default () => ({
         host: process.env.DATABASE_HOST,
         port: parseInt(process.env.DATABASE_PORT, 10) || 27017,
     },
+    mergeCodeLifetime: 20 * 1000,
     wallpapers: {
         blockingThreshold: 1,
         cacheLifetime: 60 * 60 * 1000,
