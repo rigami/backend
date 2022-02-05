@@ -65,9 +65,17 @@ export class MergeUsersService {
         this.logger.log(`Create merge request by user id:${user.id} role:${user.role}...`);
         const codeLifetime = this.configService.get<number>('mergeCodeLifetime');
 
-        const request = await this.createMergeRequest(user, device);
+        const liveRequest = await this.mergeUserRequestModel.findOne({
+            mergedUserId: user.id,
+        });
 
-        this.sseService.closeQueue('merge-request', user.id);
+        let request;
+
+        if (!liveRequest || liveRequest.expiredDate.valueOf() <= Date.now()) {
+            request = await this.createMergeRequest(user, device);
+        } else {
+            request = { code: liveRequest.code, expiredDate: liveRequest.expiredDate };
+        }
 
         const queue = this.sseService.createQueue('merge-request', user.id);
 
