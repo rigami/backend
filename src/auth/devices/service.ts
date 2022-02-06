@@ -59,6 +59,10 @@ export class DevicesService {
         this.logger.log(`Deleted all ${statistics.deletedCount} devices by user id:${userId}...`);
     }
 
+    async deleteById(deviceId: string) {
+        await this.deviceModel.deleteOne({ id: deviceId });
+    }
+
     async updateLastActivity(device: Device, ip?: string, userAgent?: string) {
         await this.deviceModel.updateOne(
             { id: device.id },
@@ -74,8 +78,6 @@ export class DevicesService {
 
     async getAllDevices(user: User): Promise<Device[]> {
         const devices = await this.deviceModel.find({ holderUserId: user.id }).lean().exec();
-
-        console.log('devices:', devices);
 
         return devices.map((device) => plainToClass(Device, device, { excludeExtraneousValues: true }));
     }

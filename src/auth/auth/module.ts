@@ -13,7 +13,7 @@ import { JwtLoginStrategy } from '@/auth/auth/strategies/jwt/login.strategy';
 
 @Module({
     imports: [
-        DevicesModule,
+        forwardRef(() => DevicesModule),
         forwardRef(() => UsersModule),
         PassportModule,
         JwtModule.register({
