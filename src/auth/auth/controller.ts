@@ -137,8 +137,8 @@ export class AuthController {
         return { accessToken, expiredTimeout };
     }
 
-    @Get('token/expired-check')
-    async isExpired(@RequestHeaders() headers: Headers, @Req() request) {
-        return this.authService.checkIsExpired(ExtractJwt.fromAuthHeaderAsBearerToken()(request));
+    @Get('token/check')
+    async checkToken(@RequestHeaders() headers: Headers, @Req() request): Promise<any> {
+        return await this.authService.check(ExtractJwt.fromAuthHeaderAsBearerToken()(request));
     }
 }

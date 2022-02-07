@@ -5,7 +5,7 @@ import { DevicesService } from '@/auth/devices/service';
 import { Device, DEVICE_TYPE } from '@/auth/devices/entities/device';
 import { ROLE, User } from '@/auth/users/entities/user';
 import { RegistrationInfo } from '@/auth/auth/entities/registrationInfo';
-import { LoginInfo } from '@/auth/auth/entities/loginInfo';
+import { STATUS } from '@/auth/utils/status.enum';
 
 @Injectable()
 export class AuthService {
@@ -20,7 +20,7 @@ export class AuthService {
     async signDevice(userAgent: string, ip: string, type: DEVICE_TYPE, platform: string, user: User) {
         this.logger.log(`Sign device for user.id:${user.id}...`);
 
-        if (!user) {
+        if (!user || user.status !== STATUS.active) {
             this.logger.warn(`Not exist user.id:${user.id}. It is not possible to sign the device`);
 
             throw new BadRequestException(`Not exist user.id:${user.id}`);
@@ -53,6 +53,14 @@ export class AuthService {
             throw new Error(`Not signed device for user.id:${user.id}`);
         }
 
+        if (user.status !== STATUS.active && user.status !== STATUS.inactive) {
+            throw new Error(`Not active user.id:${user.id}`);
+        }
+
+        if (device.status !== STATUS.active && device.status !== STATUS.inactive) {
+            throw new Error(`Not active device.id:${device.id}`);
+        }
+
         const accessToken = await this.getAccessToken(user, device);
 
         const payload = {
@@ -71,7 +79,7 @@ export class AuthService {
     async verifyDevice(sign: string, user: User): Promise<boolean> {
         this.logger.log(`Verify device for user.id:${user.id}...`);
 
-        if (!user) {
+        if (!user || user.status !== STATUS.active) {
             this.logger.warn(`Not exist user.id:${user.id}. It is not possible to verify the device`);
 
             throw new BadRequestException(`Not exist user.id:${user.id}`);
@@ -116,6 +124,57 @@ export class AuthService {
         } catch (e) {
             if (e.name === 'TokenExpiredError') {
                 return { expired: true, expiredTimeout: 0 };
+            }
+
+            throw e;
+        }
+    }
+
+    async check(jwtToken: string) {
+        let parsed: any;
+
+        try {
+            parsed = await this.jwtService.decode(jwtToken);
+        } catch (e) {
+            return { status: 'token-broken' };
+        }
+
+        const user = await this.usersService.findById(parsed.sub);
+        const device = await this.devicesService.findById(parsed.deviceSub);
+
+        if (!user) {
+            return { status: 'user-not-exist' };
+        }
+
+        if (!device) {
+            return {
+                status: 'device-not-exist',
+                recommendedAction: 'registration',
+                path: 'v1/auth/virtual/sign-device',
+            };
+        }
+
+        if (device.status === STATUS.inactive && device.holderUserId !== parsed.deviceSub) {
+            const authToken = await this.getAuthToken(user, device);
+
+            return { status: `device-${device.status}`, action: 'login/jwt', authToken };
+        }
+
+        if (device.status !== STATUS.active) {
+            return { status: `device-${device.status}` };
+        }
+
+        if (user.status !== STATUS.active) {
+            return { status: `user-${user.status}` };
+        }
+
+        try {
+            await this.jwtService.verify(jwtToken);
+
+            return { status: 'active' };
+        } catch (e) {
+            if (e.name === 'TokenExpiredError') {
+                return { status: 'token-expired' };
             }
 
             throw e;

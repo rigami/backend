@@ -5,6 +5,7 @@ import { UserSchema } from './schemas/user';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { DevicesService } from '@/auth/devices/service';
 import { v4 as UUIDv4 } from 'uuid';
+import { STATUS } from '@/auth/utils/status.enum';
 
 @Injectable()
 export class UsersService {
@@ -26,6 +27,8 @@ export class UsersService {
             username: user.username,
             password: user.password,
             role: user.role,
+            status: user.status,
+            statusChangeDate: user.statusChangeDate,
             createDate: user.createDate,
         };
     }
@@ -42,12 +45,17 @@ export class UsersService {
             username: user.username,
             password: user.password,
             role: user.role,
+            status: user.status,
+            statusChangeDate: user.statusChangeDate,
             createDate: user.createDate,
         };
     }
 
     async deleteById(userId: string): Promise<void> {
-        const user = await this.userModel.findOneAndDelete({ id: userId });
+        const user = await this.userModel.updateOne(
+            { id: userId },
+            { $set: { status: STATUS.deleted, statusChangeDate: new Date() } },
+        );
 
         if (!user) return null;
 
@@ -75,6 +83,8 @@ export class UsersService {
                 username: user.username,
                 password: user.password,
                 role: user.role,
+                status: user.status,
+                statusChangeDate: user.statusChangeDate,
                 createDate: user.createDate,
             };
         } catch (err) {

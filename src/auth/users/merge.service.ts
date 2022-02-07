@@ -11,6 +11,7 @@ import { SSEService } from '@/utils/sse/service';
 import { AuthService } from '@/auth/auth/service';
 import { Device } from '@/auth/devices/entities/device';
 import { ConfigService } from '@nestjs/config';
+import { STATUS } from '@/auth/utils/status.enum';
 
 @Injectable()
 export class MergeUsersService {
@@ -159,7 +160,7 @@ export class MergeUsersService {
 
         this.logger.log(`Change owner for all devices by user id:${mergedUser.id} to user id:${masterUser.id}...`);
 
-        await this.devicesService.changeOwnerByUserId(mergedUser.id, masterUser.id);
+        await this.devicesService.changeOwnerByUserId(mergedUser.id, masterUser.id, STATUS.inactive);
 
         this.logger.log(`Done merge user id:${mergedUser.id} into user id:${masterUser.id}...`);
 

@@ -6,6 +6,7 @@ import { DevicesService } from '@/auth/devices/service';
 import { UsersService } from '@/auth/users/service';
 import { Credentials } from '@/auth/auth/entities/credentials';
 import { ROLE } from '@/auth/users/entities/user';
+import { STATUS } from '@/auth/utils/status.enum';
 
 @Injectable()
 export class JwtLoginStrategy extends PassportStrategy(Strategy, 'jwt-login') {
@@ -19,8 +20,7 @@ export class JwtLoginStrategy extends PassportStrategy(Strategy, 'jwt-login') {
     }
 
     async validate(request: Request, payload: any): Promise<Credentials> {
-
-        console.log('validate by jwt login strategy payload:', request.headers, payload)
+        console.log('validate by jwt login strategy payload:', request.headers, payload);
 
         if (payload.tokenType !== 'authToken' || !request.headers['device-sign']) {
             throw new UnauthorizedException();
@@ -28,8 +28,7 @@ export class JwtLoginStrategy extends PassportStrategy(Strategy, 'jwt-login') {
 
         const user = await this.userService.findById(payload.sub);
 
-
-        console.log('validate by jwt login strategy user:', user)
+        console.log('validate by jwt login strategy user:', user);
 
         if (!user || user.role !== ROLE.virtual_user) {
             throw new BadRequestException();
@@ -37,9 +36,18 @@ export class JwtLoginStrategy extends PassportStrategy(Strategy, 'jwt-login') {
 
         const device = await this.deviceService.findById(payload.deviceSub);
 
-        console.log('validate by jwt login strategy device:', device)
+        console.log('validate by jwt login strategy device:', device);
 
         if (!device || device.holderUserId !== user.id || request.headers['device-sign'] !== device.sign) {
+            throw new UnauthorizedException();
+        }
+
+        if (
+            user.status === STATUS.deleted ||
+            user.status === STATUS.blocked ||
+            device.status === STATUS.deleted ||
+            device.status === STATUS.blocked
+        ) {
             throw new UnauthorizedException();
         }
 
@@ -48,12 +56,14 @@ export class JwtLoginStrategy extends PassportStrategy(Strategy, 'jwt-login') {
                 id: user.id,
                 username: user.username,
                 role: user.role,
+                status: user.status,
             },
             device: {
                 id: device.id,
                 userAgent: device.userAgent,
                 type: device.type,
                 sign: device.sign,
+                status: device.status,
                 platform: device.platform,
                 isVerify: true,
             },

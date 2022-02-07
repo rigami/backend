@@ -5,6 +5,7 @@ import { jwtConstants } from '../../constants';
 import { DevicesService } from '@/auth/devices/service';
 import { UsersService } from '@/auth/users/service';
 import { Credentials } from '@/auth/auth/entities/credentials';
+import { STATUS } from '@/auth/utils/status.enum';
 
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh') {
@@ -29,17 +30,23 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
             throw new UnauthorizedException();
         }
 
+        if (user.status !== STATUS.active || device.status !== STATUS.active) {
+            throw new UnauthorizedException();
+        }
+
         return {
             user: {
                 id: user.id,
                 username: user.username,
                 role: user.role,
+                status: user.status,
             },
             device: {
                 id: device.id,
                 userAgent: device.userAgent,
                 type: device.type,
                 sign: device.sign,
+                status: device.status,
                 platform: device.platform,
                 isVerify: true,
             },

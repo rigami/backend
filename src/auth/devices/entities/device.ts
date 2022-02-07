@@ -1,6 +1,7 @@
 import { IsBoolean, IsDate, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { User } from '@/auth/users/entities/user';
 import { Expose, Type } from 'class-transformer';
+import { STATUS } from '@/auth/utils/status.enum';
 
 export enum DEVICE_TYPE {
     'extension_chrome' = 'extension_chrome',
@@ -53,6 +54,16 @@ export class Device {
     @Expose()
     @IsString()
     readonly platform: string;
+
+    @Expose()
+    @IsEnum(STATUS)
+    @IsOptional()
+    readonly status?: STATUS = STATUS.active;
+
+    @Expose()
+    @IsDate()
+    @IsOptional()
+    readonly statusChangeDate?: Date;
 
     @Expose()
     @IsString()

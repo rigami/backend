@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsDate, IsBoolean, IsUUID, IsEnum } from 'class-validator';
+import { IsBoolean, IsDate, IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+import { STATUS } from '@/auth/utils/status.enum';
 
 export enum ROLE {
     user = 'user',
@@ -24,6 +25,12 @@ export class User {
     @IsBoolean()
     @IsOptional()
     readonly isTemp?: boolean = false;
+
+    @IsEnum(STATUS)
+    readonly status?: STATUS = STATUS.active;
+
+    @IsDate()
+    readonly statusChangeDate?: Date;
 
     @IsDate()
     @IsOptional()
