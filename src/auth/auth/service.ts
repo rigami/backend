@@ -135,6 +135,8 @@ export class AuthService {
 
         try {
             parsed = await this.jwtService.decode(jwtToken);
+
+            if (!parsed) throw new Error('Not valid token');
         } catch (e) {
             return { status: 'token-broken' };
         }
