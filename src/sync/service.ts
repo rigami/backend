@@ -21,6 +21,7 @@ import { BookmarksSyncService } from '@/sync/modules/bookmarks/service';
 import { TagsSyncService } from '@/sync/modules/tags/service';
 import { Action } from '@/sync/utils/actions';
 import { FavoritesSyncService } from '@/sync/modules/favorites/service';
+import { SettingsSyncService } from '@/sync/modules/setting/service';
 
 @Injectable()
 export class SyncService {
@@ -30,6 +31,7 @@ export class SyncService {
         bookmark: BookmarksSyncService;
         tag: TagsSyncService;
         favorite: FavoritesSyncService;
+        setting: SettingsSyncService;
     };
 
     constructor(
@@ -39,6 +41,7 @@ export class SyncService {
         private bookmarksService: BookmarksSyncService,
         private tagsService: TagsSyncService,
         private favoritesService: FavoritesSyncService,
+        private settingsService: SettingsSyncService,
         @InjectModel(HistorySchema)
         private readonly historyModel: ReturnModelType<typeof HistorySchema>,
     ) {
@@ -47,6 +50,7 @@ export class SyncService {
             bookmark: this.bookmarksService,
             tag: this.tagsService,
             favorite: this.favoritesService,
+            setting: this.settingsService,
         };
     }
 
