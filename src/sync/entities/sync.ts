@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import { IsDate, IsObject, IsOptional, IsUUID } from 'class-validator';
+import { IsDate, IsObject, IsOptional, IsString, IsUUID } from 'class-validator';
 import { BaseSyncEntity } from './base';
 
 export class SyncEntity extends BaseSyncEntity {
@@ -36,6 +36,6 @@ export class SyncPairEntity extends SyncEntity {
 
 export class CreatePairEntity extends SyncEntity {
     @Expose()
-    @IsUUID()
+    @IsString()
     readonly tempId: string;
 }

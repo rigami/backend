@@ -29,42 +29,15 @@ export class SettingsSyncService extends ItemSyncService<Setting, SettingSnapsho
     }
 
     async processSequentially(settings, processSetting): Promise<any> {
-        let syncedFoldersQueue = [...settings];
-        let pairFoldersIds = {};
+        const pairSettingsIds = {};
 
-        while (syncedFoldersQueue.length !== 0) {
-            const pairFoldersLevelIds = {};
+        for (const entity of settings) {
+            const pair = await processSetting(entity);
 
-            const rootFolders = syncedFoldersQueue.filter((entity) => {
-                if (entity.payload.parentId || entity.payload.parentTempId in pairFoldersIds) {
-                    pairFoldersLevelIds[entity.tempId || entity.id] = null;
-
-                    return true;
-                }
-
-                return false;
-            });
-
-            syncedFoldersQueue = syncedFoldersQueue.filter(
-                (entity) => !((entity.tempId || entity.id) in pairFoldersLevelIds),
-            );
-            pairFoldersIds = merge(pairFoldersIds, pairFoldersLevelIds);
-
-            for (const entity of rootFolders) {
-                const pair = await processSetting({
-                    ...entity,
-                    payload: {
-                        ...entity.payload,
-                        parentId: entity.payload.parentId || pairFoldersIds[entity.payload.parentTempId],
-                        parentTempId: null,
-                    },
-                });
-
-                pairFoldersIds[pair.localId] = pair.cloudId;
-            }
+            pairSettingsIds[pair.localId] = pair.cloudId;
         }
 
-        return pairFoldersIds;
+        return pairSettingsIds;
     }
 
     async exist(searchSetting: Setting, user: User): Promise<SyncPairEntity> {

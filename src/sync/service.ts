@@ -227,6 +227,11 @@ export class SyncService {
                 tagCloudIdsByLocalIds,
                 bookmarksCloudIdsByLocalIds,
             );
+
+            await this.settingsService.processSequentially(
+                pushRequest.create.filter((entity) => entity.entityType === 'setting'),
+                mergeEntity,
+            );
         }
 
         if (pushRequest.update.length !== 0) {
@@ -426,6 +431,7 @@ export class SyncService {
         const bookmarks = await this.bookmarksService.get(fromRawCommit, toRawCommit, user);
         const tags = await this.tagsService.get(fromRawCommit, toRawCommit, user);
         const favorites = await this.favoritesService.get(fromRawCommit, toRawCommit, user);
+        const settings = await this.settingsService.get(fromRawCommit, toRawCommit, user);
 
         return {
             headCommit: serverHeadCommit,
@@ -434,13 +440,14 @@ export class SyncService {
                 ...bookmarks.create.map((entity) => ({ entity, type: 'bookmark' })),
                 ...tags.create.map((entity) => ({ entity, type: 'tag' })),
                 ...favorites.create.map((entity) => ({ entity, type: 'favorite' })),
+                ...settings.create.map((entity) => ({ entity, type: 'setting' })),
             ].map(
                 ({
                     entity,
                     type,
                 }: {
                     entity: any;
-                    type: 'folder' | 'bookmark' | 'tag' | 'favorite';
+                    type: 'folder' | 'bookmark' | 'tag' | 'favorite' | 'setting';
                 }): SyncPairEntity => ({
                     id: entity.id,
                     entityType: type,
@@ -456,13 +463,14 @@ export class SyncService {
                 ...bookmarks.update.map((entity) => ({ entity, type: 'bookmark' })),
                 ...tags.update.map((entity) => ({ entity, type: 'tag' })),
                 ...favorites.update.map((entity) => ({ entity, type: 'favorite' })),
+                ...settings.update.map((entity) => ({ entity, type: 'setting' })),
             ].map(
                 ({
                     entity,
                     type,
                 }: {
                     entity: any;
-                    type: 'folder' | 'bookmark' | 'tag' | 'favorite';
+                    type: 'folder' | 'bookmark' | 'tag' | 'favorite' | 'setting';
                 }): SyncPairEntity => ({
                     id: entity.id,
                     entityType: type,
@@ -478,6 +486,7 @@ export class SyncService {
                 ...bookmarks.delete.map((entity) => ({ ...entity, entityType: 'bookmark' })),
                 ...tags.delete.map((entity) => ({ ...entity, entityType: 'tag' })),
                 ...favorites.delete.map((entity) => ({ ...entity, entityType: 'favorite' })),
+                ...settings.delete.map((entity) => ({ ...entity, type: 'setting' })),
             ],
         };
     }
