@@ -39,7 +39,7 @@ export class SiteParseService {
         const title = head.querySelector('title')?.textContent;
         const description = head
             .querySelector("meta[name='description']")
-            .attributes.getNamedItem('content').textContent;
+            ?.attributes?.getNamedItem('content')?.textContent;
 
         const imageElements = head.querySelectorAll(
             `
@@ -115,6 +115,10 @@ export class SiteParseService {
                 return;
             }
 
+            if (startsWith(image.baseUrl, '//')) {
+                image.baseUrl = `https:${image.baseUrl}`;
+            }
+
             if (!startsWith(image.baseUrl, 'http')) {
                 image.baseUrl = `${rootUrl}${image.baseUrl}`;
             }
@@ -146,96 +150,102 @@ export class SiteParseService {
 
         const originalRootUrl = url.substring(0, url.indexOf('/', 8));
 
-        try {
-            const { title, description, images } = this._parseDocument(rawData, rootUrl);
+        let title = '';
+        let description = '';
+        let images = [];
 
+        try {
+            const data = this._parseDocument(rawData, rootUrl);
+
+            title = data.title;
+            description = data.description || '';
+            images = data.images;
+        } catch (e) {
+            throw new Error(`Broken DOM (${e.message})`);
+        }
+
+        images.push({
+            url: '',
+            baseUrl: `${originalRootUrl}/favicon.ico`,
+            width: undefined,
+            height: undefined,
+            score: 0,
+            type: 'unknown',
+            recommendedTypes: [],
+        });
+
+        if (originalRootUrl !== rootUrl) {
             images.push({
                 url: '',
-                baseUrl: `${originalRootUrl}/favicon.ico`,
+                baseUrl: `${rootUrl}/favicon.ico`,
                 width: undefined,
                 height: undefined,
                 score: 0,
                 type: 'unknown',
                 recommendedTypes: [],
             });
-
-            if (originalRootUrl !== rootUrl) {
-                images.push({
-                    url: '',
-                    baseUrl: `${rootUrl}/favicon.ico`,
-                    width: undefined,
-                    height: undefined,
-                    score: 0,
-                    type: 'unknown',
-                    recommendedTypes: [],
-                });
-            }
-
-            const uniqueImages = images.filter((imageA, index, arr) => {
-                const indexByLast = arr
-                    .slice()
-                    .reverse()
-                    .findIndex((imageB) => imageA.baseUrl === imageB.baseUrl);
-
-                return indexByLast === arr.length - index - 1;
-            });
-
-            const unknownTypeImages = await Promise.allSettled(
-                uniqueImages
-                    .filter((image) => image.type === 'unknown')
-                    .map((image) => this.iconsProcessingService.processingImage(image.baseUrl)),
-            );
-
-            unknownTypeImages.forEach((result) => {
-                if (result.status !== 'fulfilled') return;
-
-                const imageA = result.value;
-
-                const index = uniqueImages.findIndex((imageB) => imageA.baseUrl === imageB.baseUrl);
-
-                uniqueImages[index] = {
-                    url: '',
-                    baseUrl: imageA.baseUrl,
-                    width: imageA.width,
-                    height: imageA.height,
-                    score: imageA.score,
-                    type: imageA.type,
-                    recommendedTypes: imageA.recommendedTypes,
-                };
-            });
-
-            const finishImages = uniqueImages
-                .sort((imageA, imageB) => {
-                    if (imageA.score > imageB.score) {
-                        return -1;
-                    } else if (imageA.score < imageB.score) {
-                        return 1;
-                    }
-
-                    return 0;
-                })
-                .map((image) => ({
-                    ...image,
-                    url:
-                        image.type === 'unknown'
-                            ? `/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}`
-                            : `/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}&type=${
-                                  image.type
-                              }`,
-                }));
-
-            return {
-                url,
-                protocol: request.protocol,
-                host: request.host,
-                rootUrl,
-                title,
-                description,
-                images: finishImages,
-            };
-        } catch (e) {
-            throw new Error(`Broken DOM (${e.message})`);
         }
+
+        const uniqueImages = images.filter((imageA, index, arr) => {
+            const indexByLast = arr
+                .slice()
+                .reverse()
+                .findIndex((imageB) => imageA.baseUrl === imageB.baseUrl);
+
+            return indexByLast === arr.length - index - 1;
+        });
+
+        const unknownTypeImages = await Promise.allSettled(
+            uniqueImages
+                .filter((image) => image.type === 'unknown')
+                .map((image) => this.iconsProcessingService.processingImage(image.baseUrl)),
+        );
+
+        unknownTypeImages.forEach((result) => {
+            if (result.status !== 'fulfilled') return;
+
+            const imageA = result.value;
+
+            const index = uniqueImages.findIndex((imageB) => imageA.baseUrl === imageB.baseUrl);
+
+            uniqueImages[index] = {
+                url: '',
+                baseUrl: imageA.baseUrl,
+                width: imageA.width,
+                height: imageA.height,
+                score: imageA.score,
+                type: imageA.type,
+                recommendedTypes: imageA.recommendedTypes,
+            };
+        });
+
+        const finishImages = uniqueImages
+            .sort((imageA, imageB) => {
+                if (imageA.score > imageB.score) {
+                    return -1;
+                } else if (imageA.score < imageB.score) {
+                    return 1;
+                }
+
+                return 0;
+            })
+            .map((image) => ({
+                ...image,
+                url:
+                    image.type === 'unknown'
+                        ? `/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}`
+                        : `/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}&type=${image.type}`,
+            }));
+
+        return {
+            url,
+            protocol: request.protocol,
+            host: request.host,
+            rootUrl,
+            title,
+            description,
+            images: finishImages,
+        };
     }
 
     async saveSiteToCache(site: Site): Promise<void> {
