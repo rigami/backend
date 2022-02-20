@@ -159,7 +159,7 @@ export class IconsProcessingService {
         };
     }
 
-    @Interval(60 * 1000) // Clear cache every 1m
+    @Interval(60 * 1000) // Check cache every 1m
     async handleClearCache() {
         this.logger.log('Start clearing obsolete icons cache...');
 

@@ -44,6 +44,8 @@ export class SiteParseService {
 
         const rootUrl = `${request.protocol}//${request.host}`;
 
+        const originalRootUrl = url.substring(0, url.indexOf('/', 8));
+
         try {
             const document: Document = new JSDOM(rawData).window.document;
 
@@ -71,61 +73,85 @@ export class SiteParseService {
                 `,
             );
 
-            const images = Array.from(imageElements)
-                .map((element) => {
-                    const image: SiteImage = {
-                        url: '',
-                        baseUrl: '',
-                        width: undefined,
-                        height: undefined,
-                        score: 0,
-                        type: 'unknown',
-                    };
+            let images = Array.from(imageElements).map((element) => {
+                const image: SiteImage = {
+                    url: '',
+                    baseUrl: '',
+                    width: undefined,
+                    height: undefined,
+                    score: 0,
+                    type: 'unknown',
+                };
 
-                    if (element.tagName.toLowerCase() === 'meta') {
-                        image.baseUrl = getAttr(element, 'content');
-                    } else if (element.tagName.toLowerCase() === 'link') {
-                        image.baseUrl = getAttr(element, 'href');
+                if (element.tagName.toLowerCase() === 'meta') {
+                    image.baseUrl = getAttr(element, 'content');
+                } else if (element.tagName.toLowerCase() === 'link') {
+                    image.baseUrl = getAttr(element, 'href');
 
-                        const size = getAttr(element, 'sizes');
-                        if (size && size !== '' && size !== 'any') {
-                            try {
-                                const separator = size.indexOf('x');
-                                if (separator === -1) throw new Error('Is not size');
+                    const size = getAttr(element, 'sizes');
+                    if (size && size !== '' && size !== 'any') {
+                        try {
+                            const separator = size.indexOf('x');
+                            if (separator === -1) throw new Error('Is not size');
 
-                                image.width = +size.substring(0, separator);
-                                image.height = +size.substring(separator + 1);
+                            image.width = +size.substring(0, separator);
+                            image.height = +size.substring(separator + 1);
 
-                                const ratio = image.width / image.height;
-                                const wScore = (1 / Math.abs(image.width - 100)) * (image.width > 100 ? 400 : 100);
-                                const hScore = (1 / Math.abs(image.height - 100)) * (image.height > 100 ? 400 : 100);
+                            const ratio = image.width / image.height;
+                            const wScore = (1 / Math.abs(image.width - 100)) * (image.width > 100 ? 400 : 100);
+                            const hScore = (1 / Math.abs(image.height - 100)) * (image.height > 100 ? 400 : 100);
 
-                                if (ratio !== 1 && image.width >= 210) {
-                                    image.type = 'poster';
-                                } else if (ratio === 1 && image.width >= 40) {
-                                    image.type = 'icon';
-                                } else {
-                                    image.type = 'small-icon';
-                                }
-
-                                image.score += wScore;
-                                image.score += hScore;
-                            } catch (e) {
-                                this.logger.error(e);
+                            if (ratio !== 1 && image.width >= 210) {
+                                image.type = 'poster';
+                            } else if (ratio === 1 && image.width >= 40) {
+                                image.type = 'icon';
+                            } else {
+                                image.type = 'small-icon';
                             }
+
+                            image.score += wScore;
+                            image.score += hScore;
+                        } catch (e) {
+                            this.logger.error(e);
                         }
-                    } else {
-                        return null;
                     }
+                } else {
+                    return null;
+                }
 
-                    if (!startsWith(image.baseUrl, 'http')) {
-                        image.baseUrl = `${rootUrl}${image.baseUrl}`;
-                    }
+                if (!startsWith(image.baseUrl, 'http')) {
+                    image.baseUrl = `${rootUrl}${image.baseUrl}`;
+                }
 
-                    return image;
-                })
+                return image;
+            });
+
+            images.push({
+                url: '',
+                baseUrl: `${originalRootUrl}/favicon.ico`,
+                width: undefined,
+                height: undefined,
+                score: 0,
+                type: 'unknown',
+            });
+
+            if (originalRootUrl !== rootUrl) {
+                images.push({
+                    url: '',
+                    baseUrl: `${rootUrl}/favicon.ico`,
+                    width: undefined,
+                    height: undefined,
+                    score: 0,
+                    type: 'unknown',
+                });
+            }
+
+            images = images
                 .filter((imageA, index, arr) => {
-                    const indexByLast = arr.reverse().findIndex((imageB) => imageA.baseUrl === imageB.baseUrl);
+                    const indexByLast = arr
+                        .slice()
+                        .reverse()
+                        .findIndex((imageB) => imageA.baseUrl === imageB.baseUrl);
 
                     return indexByLast === arr.length - index - 1;
                 })
@@ -142,6 +168,8 @@ export class SiteParseService {
                     ...image,
                     url: `/site-parse/processing-image?url=${encodeURIComponent(image.baseUrl)}`,
                 }));
+
+            console.log(images);
 
             return {
                 url,
