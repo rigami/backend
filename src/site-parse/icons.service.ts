@@ -12,6 +12,7 @@ import { Interval } from '@nestjs/schedule';
 import { pick } from 'lodash';
 import { SiteSchema } from '@/site-parse/schemas/site';
 import { ConfigService } from '@nestjs/config';
+import { SITE_IMAGE_TYPE } from '@/site-parse/entities/siteImage';
 
 async function ResizedSharp(p: string | Buffer, { width, height }: { width?: number; height?: number }): Sharp {
     const instance = Sharp(p);
@@ -56,12 +57,12 @@ export class IconsProcessingService {
         private readonly siteImageModel: ReturnModelType<typeof SiteImageSchema>,
     ) {}
 
-    async processingImage(url: string): Promise<any> {
+    async processingImage(url: string, preferType = 'unknown'): Promise<any> {
         console.time('pre parse icon');
         const { data, request } = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
 
         let buffer = data;
-        let type: string;
+        let type: string = preferType;
         let score: number;
 
         if (request.res.headers['content-type'] === 'image/x-icon') {
@@ -73,28 +74,73 @@ export class IconsProcessingService {
         const metadata = await canvas.metadata();
 
         this.logger.log(
-            `Processing icon '${url}'. Metadata: ${JSON.stringify(pick(metadata, ['format', 'width', 'height']))}`,
+            `Processing icon url:'${url}' preferType:${preferType}. Metadata: ${JSON.stringify(
+                pick(metadata, ['format', 'width', 'height']),
+            )}`,
         );
 
         console.timeLog('pre parse icon');
 
         const ratio = metadata.width / metadata.height;
 
-        if (ratio !== 1 && metadata.width >= 210) {
-            // Big poster
-            canvas = canvas.resize(210 * 2, 110 * 2);
-            type = 'poster';
+        const toCover = () => {
+            this.logger.log(`Convert icon url:'${url}' to cover`);
+            canvas = canvas.resize(210 * 2, 210 * 2);
+            type = SITE_IMAGE_TYPE.cover;
             score = Math.min(Math.round((metadata.width + metadata.height) / 8), 300);
-        } else if ((ratio === 1 && metadata.width >= 40) || metadata.format === 'svg') {
-            // Big icon
+        };
+
+        const toPoster = () => {
+            this.logger.log(`Convert icon url:'${url}' to poster`);
+            canvas = canvas.resize(210 * 2, 110 * 2);
+            type = SITE_IMAGE_TYPE.poster;
+            score = Math.min(Math.round((metadata.width + metadata.height) / 8), 300);
+        };
+
+        const toIcon = () => {
+            this.logger.log(`Convert icon url:'${url}' to icon`);
             canvas = canvas.resize(40 * 2, 40 * 2);
-            type = 'icon';
+            type = SITE_IMAGE_TYPE.icon;
             score = Math.min(Math.round((metadata.width + metadata.height) / 2), 140);
-        } else {
-            // Small icon
+        };
+
+        const toSmallIcon = () => {
+            this.logger.log(`Convert icon url:'${url}' to small-icon`);
             canvas = canvas.resize(40 * 2, 40 * 2).blur(30);
-            type = 'small-icon';
+            type = SITE_IMAGE_TYPE.small_icon;
             score = Math.round((metadata.width + metadata.height) / 2);
+        };
+
+        const recommendedTypes = [];
+
+        if (preferType !== 'unknown') {
+            recommendedTypes.push(preferType);
+        }
+
+        if (ratio <= 1 && metadata.width >= 210) {
+            if (!recommendedTypes.includes(SITE_IMAGE_TYPE.cover)) recommendedTypes.push(SITE_IMAGE_TYPE.cover);
+        }
+
+        if (ratio >= 1 && metadata.width >= 210) {
+            if (!recommendedTypes.includes(SITE_IMAGE_TYPE.poster)) recommendedTypes.push(SITE_IMAGE_TYPE.poster);
+        }
+
+        if ((ratio === 1 && metadata.width >= 40) || metadata.format === 'svg') {
+            if (!recommendedTypes.includes(SITE_IMAGE_TYPE.icon)) recommendedTypes.push(SITE_IMAGE_TYPE.icon);
+        }
+
+        if (!recommendedTypes.includes(SITE_IMAGE_TYPE.small_icon)) {
+            recommendedTypes.push(SITE_IMAGE_TYPE.small_icon);
+        }
+
+        if (recommendedTypes[0] === SITE_IMAGE_TYPE.cover) {
+            toCover();
+        } else if (recommendedTypes[0] === SITE_IMAGE_TYPE.poster) {
+            toPoster();
+        } else if (recommendedTypes[0] === SITE_IMAGE_TYPE.icon) {
+            toIcon();
+        } else {
+            toSmallIcon();
         }
 
         if (metadata.format === 'svg') {
@@ -111,6 +157,7 @@ export class IconsProcessingService {
             baseUrl: url,
             score,
             type,
+            recommendedTypes,
             width: metadata.width,
             height: metadata.height,
             data: processingData,
@@ -118,7 +165,7 @@ export class IconsProcessingService {
     }
 
     async saveImageToCache(image): Promise<void> {
-        const name = hash(image.baseUrl);
+        const name = hash(`${image.type}/${image.baseUrl}`);
 
         await fs.outputFile(`cache/images/${name}.png`, image.data);
 
@@ -127,6 +174,7 @@ export class IconsProcessingService {
             baseUrl: image.baseUrl,
             score: image.score,
             type: image.type,
+            recommendedTypes: image.recommendedTypes || [],
             width: image.width,
             height: image.height,
         });
@@ -153,6 +201,7 @@ export class IconsProcessingService {
             baseUrl: dbRow.baseUrl,
             score: dbRow.score,
             type: dbRow.type,
+            recommendedTypes: dbRow.recommendedTypes,
             width: dbRow.width,
             height: dbRow.height,
             data: processingData,

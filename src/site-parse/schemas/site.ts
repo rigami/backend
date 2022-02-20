@@ -13,11 +13,11 @@ class SiteImageLite {
     @Prop()
     score?: number;
 
-    @Prop({
-        required: true,
-        enum: ['poster', 'icon', 'small-icon'],
-    })
+    @Prop({ required: true })
     type!: string;
+
+    @Prop({ required: true })
+    recommendedTypes!: string[];
 }
 
 @ModelOptions({ options: { customName: 'sites' } })

@@ -1,4 +1,5 @@
 import { Prop, Index, ModelOptions } from '@typegoose/typegoose';
+import { SITE_IMAGE_TYPE } from '@/site-parse/entities/siteImage';
 
 @ModelOptions({ options: { customName: 'site-images' } })
 @Index({ fileName: 'text' })
@@ -23,9 +24,12 @@ export class SiteImageSchema {
 
     @Prop({
         required: true,
-        enum: ['poster', 'icon', 'small-icon'],
+        enum: [...Object.keys(SITE_IMAGE_TYPE).map((key) => SITE_IMAGE_TYPE[key]), 'unknown'],
     })
     type!: string;
+
+    @Prop({ required: true })
+    recommendedTypes!: string[];
 
     @Prop({ required: true, default: () => new Date() })
     createDate?: Date;

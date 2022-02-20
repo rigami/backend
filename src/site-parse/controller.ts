@@ -46,6 +46,7 @@ export class SiteParseController {
                         height: imageFromCache.height,
                         score: imageFromCache.score,
                         type: imageFromCache.type,
+                        recommendedTypes: imageFromCache.recommendedTypes,
                     };
                 }
 
@@ -67,25 +68,32 @@ export class SiteParseController {
     // @UseGuards(JwtAccessAuthGuard)
     @Get('processing-image')
     async processingImage(@Query() query, @Res() response): Promise<void> {
-        this.logger.log(`Processing image by url: '${query.url}'`);
-        const name = hash(query.url);
+        this.logger.log(`Processing image by url: '${query.url}' type: ${query.type}`);
+        const name = hash(`${query.type || 'unknown'}/${query.url}`);
 
         let image = await this.iconsProcessingService.getImageFromCache(name);
 
         if (!image) {
             this.logger.log(`Not find image in cache. Processing...`);
-            image = await this.iconsProcessingService.processingImage(query.url);
+            image = await this.iconsProcessingService.processingImage(query.url, query.type?.replace('-', '_'));
 
             await this.iconsProcessingService.saveImageToCache(image);
+
+            if ((query.type || 'unknown') === 'unknown') {
+                await this.iconsProcessingService.saveImageToCache({ ...image, type: 'unknown' });
+            }
         } else {
             this.logger.log(`Find image in cache with name '${name}'`);
         }
+
+        console.log('image:', image)
 
         response.set({
             'Content-Type': 'image/png',
             'Accept-Ranges': 'bytes',
             'Content-Length': Buffer.byteLength(image.data),
             'Image-Type': image.type,
+            'Image-Recommended-Types': image.recommendedTypes.join(','),
             'Image-Score': image.score,
             'Image-Base-Url': image.baseUrl,
         });
