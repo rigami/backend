@@ -11,6 +11,7 @@ import fs from 'fs-extra';
 import { Interval } from '@nestjs/schedule';
 import { pick } from 'lodash';
 import { SiteSchema } from '@/site-parse/schemas/site';
+import { ConfigService } from '@nestjs/config';
 
 async function ResizedSharp(p: string | Buffer, { width, height }: { width?: number; height?: number }): Sharp {
     const instance = Sharp(p);
@@ -48,6 +49,7 @@ export class IconsProcessingService {
 
     constructor(
         private httpService: HttpService,
+        private configService: ConfigService,
         @InjectModel(SiteSchema)
         private readonly siteModel: ReturnModelType<typeof SiteSchema>,
         @InjectModel(SiteImageSchema)
@@ -161,16 +163,18 @@ export class IconsProcessingService {
     async handleClearCache() {
         this.logger.log('Start clearing obsolete icons cache...');
 
+        const lifetime = this.configService.get<number>('siteParse.iconsCacheLifetime') || 0;
+
         try {
             const imagesRemove = await this.siteImageModel.find({
                 createDate: {
-                    $lte: new Date(),
+                    $lte: new Date(Date.now() - lifetime),
                 },
             });
 
             await this.siteImageModel.deleteMany({
                 createDate: {
-                    $lte: new Date(),
+                    $lte: new Date(Date.now() - lifetime),
                 },
             });
             const count = await this.siteModel.count();

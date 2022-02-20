@@ -10,6 +10,7 @@ import { ReturnModelType } from '@typegoose/typegoose';
 import { Interval } from '@nestjs/schedule';
 import { SiteImageSchema } from './schemas/siteImage';
 import { startsWith } from 'lodash';
+import { ConfigService } from '@nestjs/config';
 
 function getAttr(node, attrName) {
     return node.attributes.getNamedItem(attrName)?.textContent;
@@ -21,6 +22,7 @@ export class SiteParseService {
 
     constructor(
         private httpService: HttpService,
+        private configService: ConfigService,
         @InjectModel(SiteSchema)
         private readonly siteModel: ReturnModelType<typeof SiteSchema>,
         @InjectModel(SiteImageSchema)
@@ -205,20 +207,22 @@ export class SiteParseService {
         return null;
     }
 
-    @Interval(60 * 1000) // Clear cache every 1m
+    @Interval(60 * 1000) // Check cache every 1m
     async handleClearCache() {
         this.logger.log('Start clearing obsolete site cache...');
+
+        const lifetime = this.configService.get<number>('siteParse.siteMetaCacheLifetime') || 0;
 
         try {
             const sitesRemove = await this.siteModel.find({
                 createDate: {
-                    $lte: new Date(),
+                    $lte: new Date(Date.now() - lifetime),
                 },
             });
 
             await this.siteModel.deleteMany({
                 createDate: {
-                    $lte: new Date(),
+                    $lte: new Date(Date.now() - lifetime),
                 },
             });
             const count = await this.siteModel.count();

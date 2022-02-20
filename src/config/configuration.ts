@@ -19,4 +19,8 @@ export default () => ({
             apiKey: process.env.WALLPAPERS_PIXABAY_APIKEY || '5843520-2c340ccc21b8d0ac9fa75a177',
         },
     },
+    siteParse: {
+        siteMetaCacheLifetime: 60 * 60 * 1000,
+        iconsCacheLifetime: 60 * 60 * 1000,
+    },
 });
