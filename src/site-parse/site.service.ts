@@ -122,6 +122,11 @@ export class SiteParseService {
 
                     return image;
                 })
+                .filter((imageA, index, arr) => {
+                    const indexByLast = arr.reverse().findIndex((imageB) => imageA.baseUrl === imageB.baseUrl);
+
+                    return indexByLast === arr.length - index - 1;
+                })
                 .sort((imageA, imageB) => {
                     if (imageA.score > imageB.score) {
                         return -1;
