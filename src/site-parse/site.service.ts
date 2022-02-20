@@ -264,8 +264,6 @@ export class SiteParseService {
         const site = await this.siteModel.findOne({ url });
 
         if (site) {
-            console.log('images:', site.images);
-
             return {
                 url: site.url,
                 rootUrl: site.rootUrl,

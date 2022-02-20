@@ -165,7 +165,7 @@ export class IconsProcessingService {
     }
 
     async saveImageToCache(image): Promise<void> {
-        const name = hash(`${image.type}/${image.baseUrl}`);
+        const name = hash(`${image.type || 'unknown'}/${image.baseUrl}`);
 
         await fs.outputFile(`cache/images/${name}.png`, image.data);
 

@@ -77,16 +77,18 @@ export class SiteParseController {
             this.logger.log(`Not find image in cache. Processing...`);
             image = await this.iconsProcessingService.processingImage(query.url, query.type?.replace('-', '_'));
 
-            await this.iconsProcessingService.saveImageToCache(image);
+            try {
+                await this.iconsProcessingService.saveImageToCache(image);
 
-            if ((query.type || 'unknown') === 'unknown') {
-                await this.iconsProcessingService.saveImageToCache({ ...image, type: 'unknown' });
+                if ((query.type || 'unknown') === 'unknown') {
+                    await this.iconsProcessingService.saveImageToCache({ ...image, type: 'unknown' });
+                }
+            } catch (e) {
+                this.logger.warn(`Failed save site image to cache. Error: ${e.message}`);
             }
         } else {
             this.logger.log(`Find image in cache with name '${name}'`);
         }
-
-        console.log('image:', image)
 
         response.set({
             'Content-Type': 'image/png',
