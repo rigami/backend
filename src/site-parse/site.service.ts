@@ -120,7 +120,11 @@ export class SiteParseService {
             }
 
             if (!startsWith(image.baseUrl, 'http')) {
-                image.baseUrl = `${rootUrl}${image.baseUrl}`;
+                if (startsWith(image.baseUrl, '/')) {
+                    image.baseUrl = `${rootUrl}${image.baseUrl}`;
+                } else {
+                    image.baseUrl = `${rootUrl}/${image.baseUrl}`;
+                }
             }
 
             images.push(image);
