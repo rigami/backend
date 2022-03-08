@@ -22,6 +22,9 @@ export class SiteImageSchema {
     @Prop()
     score?: number;
 
+    @Prop()
+    safeZone?: number;
+
     @Prop({
         required: true,
         enum: [...Object.keys(SITE_IMAGE_TYPE).map((key) => SITE_IMAGE_TYPE[key]), 'unknown'],

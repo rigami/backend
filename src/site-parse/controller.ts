@@ -71,11 +71,19 @@ export class SiteParseController {
         this.logger.log(`Processing image by url: '${query.url}' type: ${query.type}`);
         const name = hash(`${query.type || 'unknown'}/${query.url}`);
 
-        let image = await this.iconsProcessingService.getImageFromCache(name);
+        let image;
+
+        if (!('force' in query)) {
+            image = await this.iconsProcessingService.getImageFromCache(name);
+        }
 
         if (!image) {
             this.logger.log(`Not find image in cache. Processing...`);
-            image = await this.iconsProcessingService.processingImage(query.url, query.type?.replace('-', '_'));
+            image = await this.iconsProcessingService.processingImage(
+                query.url,
+                query.type?.replace('-', '_'),
+                'bounds' in query,
+            );
 
             try {
                 await this.iconsProcessingService.saveImageToCache(image);
@@ -98,6 +106,7 @@ export class SiteParseController {
             'Image-Recommended-Types': image.recommendedTypes.join(','),
             'Image-Score': image.score,
             'Image-Base-Url': image.baseUrl,
+            'Image-Safe-Zone': image.safeZone,
         });
 
         Readable.from(image.data).pipe(response);

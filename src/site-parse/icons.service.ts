@@ -9,10 +9,11 @@ import { ReturnModelType } from '@typegoose/typegoose';
 import hash from '@/utils/hash';
 import fs from 'fs-extra';
 import { Interval } from '@nestjs/schedule';
-import { pick } from 'lodash';
+import { pick, isEqual } from 'lodash';
 import { SiteSchema } from '@/site-parse/schemas/site';
 import { ConfigService } from '@nestjs/config';
 import { SITE_IMAGE_TYPE } from '@/site-parse/entities/siteImage';
+import { createCanvas } from 'canvas';
 
 async function ResizedSharp(p: string | Buffer, { width, height }: { width?: number; height?: number }): Sharp {
     const instance = Sharp(p);
@@ -57,59 +58,200 @@ export class IconsProcessingService {
         private readonly siteImageModel: ReturnModelType<typeof SiteImageSchema>,
     ) {}
 
-    async processingImage(url: string, preferType = 'unknown'): Promise<any> {
-        console.time('pre parse icon');
-        const { data, request } = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
+    async addBounds(imageCanvas, safeZone) {
+        const metadata = await Sharp(await imageCanvas.toBuffer()).metadata();
 
-        let buffer = data;
-        let type: string = preferType;
-        let score: number;
+        const canvas = createCanvas(metadata.width, metadata.height);
+        const ctx = canvas.getContext('2d');
 
-        if (request.res.headers['content-type'] === 'image/x-icon') {
-            buffer = await icoToPng(data, 80);
+        ctx.strokeStyle = 'rgba(169,20,255,0.5)';
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.rect(0.5, 0.5, metadata.width - 1, metadata.height - 1);
+        ctx.stroke();
+        ctx.rect(8 + 0.5, 8 + 0.5, metadata.width - 16 - 1, metadata.height - 16 - 1);
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgba(115,255,0,1)';
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.rect(safeZone + 0.5, safeZone + 0.5, metadata.width - safeZone * 2 - 1, metadata.height - safeZone * 2 - 1);
+        ctx.stroke();
+
+        /* ctx.strokeStyle = 'rgb(238,0,255)';
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.rect(
+            safeZone + 1 + 0.5,
+            safeZone + 1 + 0.5,
+            metadata.width - safeZone * 2 - 2 - 1,
+            metadata.height - safeZone * 2 - 2 - 1,
+        );
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgb(0,247,255)';
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.rect(
+            safeZone + 2 + 0.5,
+            safeZone + 2 + 0.5,
+            metadata.width - safeZone * 2 - 4 - 1,
+            metadata.height - safeZone * 2 - 4 - 1,
+        );
+        ctx.stroke();
+
+        ctx.strokeStyle = 'rgb(255,204,0)';
+        ctx.beginPath();
+        ctx.lineWidth = 1;
+        ctx.rect(
+            safeZone + 3 + 0.5,
+            safeZone + 3 + 0.5,
+            metadata.width - safeZone * 2 - 6 - 1,
+            metadata.height - safeZone * 2 - 6 - 1,
+        );
+        ctx.stroke(); */
+
+        const buffer = canvas.toBuffer();
+
+        return imageCanvas.composite([{ input: buffer }]);
+    }
+
+    async checkSafeZone(canvas) {
+        const clone = canvas.clone();
+
+        const metadata = await Sharp(await clone.toBuffer()).metadata();
+        const data = Array.from(await clone.raw().toBuffer());
+
+        const getPixel = (offset) => ({
+            r: data[offset * metadata.channels],
+            g: data[offset * metadata.channels + 1],
+            b: data[offset * metadata.channels + 2],
+            a: metadata.channels === 4 ? data[offset * metadata.channels + 3] : 255,
+        });
+
+        const pixelsCount = metadata.width * metadata.height;
+
+        const pixels = [];
+        let level = 0;
+        let isNormal = true;
+        let isSuperNormal = true;
+        let safeColor = null;
+        let isSuperEmpty = true;
+
+        do {
+            pixels.length = 0;
+
+            for (let x = level; x < metadata.width - level * 2; x++) {
+                pixels.push(getPixel(x + level * metadata.width));
+                pixels.push(getPixel(pixelsCount - level * metadata.width - x - 1));
+            }
+
+            for (let y = level + 1; y < metadata.height - level * 2 - 2; y++) {
+                pixels.push(getPixel(metadata.width * y + level));
+                pixels.push(getPixel(metadata.width * y + metadata.width - level - 1));
+            }
+
+            const colorsPalette = [];
+            const colorsCount = [];
+
+            pixels.forEach((color) => {
+                const nearColorIndex = colorsPalette.findIndex((checkColor) => {
+                    return (
+                        Math.abs(checkColor.a - color.a) < 90 ||
+                        (Math.abs(checkColor.r - color.r) < 75 &&
+                            Math.abs(checkColor.g - color.g) < 75 &&
+                            Math.abs(checkColor.b - color.b) < 75 &&
+                            Math.abs(checkColor.a - color.a) < 170)
+                    );
+                });
+
+                if (nearColorIndex === -1) {
+                    colorsPalette.push(color);
+                    colorsCount.push(1);
+                } else {
+                    colorsCount[nearColorIndex] += 1;
+                }
+            });
+
+            const colorsPaletteSorted = [];
+            const colorsCountSorted = [];
+            let wholePixels = 0;
+
+            colorsCount.forEach(() => {
+                let indexMax;
+                let colorMax = 0;
+
+                colorsCount.forEach((color, index) => {
+                    if (color >= colorMax) {
+                        indexMax = index;
+                        colorMax = color;
+                    }
+                });
+
+                colorsCountSorted.push(colorsCount[indexMax]);
+                colorsPaletteSorted.push(colorsPalette[indexMax]);
+                wholePixels += colorsCount[indexMax];
+
+                colorsCount[indexMax] = -1;
+            });
+
+            console.log(
+                `level: ${level} colorsPalette:`,
+                colorsPaletteSorted,
+                ' colorsCount:',
+                colorsCountSorted,
+                ' wholePixels:',
+                wholePixels,
+            );
+
+            if (safeColor) {
+                const safeColorIndex = colorsPaletteSorted.findIndex((color) => isEqual(color, safeColor));
+
+                if (safeColorIndex !== -1) {
+                    isNormal = colorsCountSorted[safeColorIndex] / wholePixels >= (isSuperNormal ? 0.85 : 0.5);
+
+                    console.log('Safe check:', {
+                        isNormal,
+                        isSuperNormal,
+                        safeColor: colorsPaletteSorted[safeColorIndex],
+                    });
+
+                    if (isNormal || !isSuperNormal) {
+                        level += 1;
+                    }
+                } else {
+                    isNormal = false
+                }
+
+                continue;
+            }
+
+            level += 1;
+
+            safeColor = colorsPaletteSorted[0];
+            isNormal = colorsCountSorted[0] / wholePixels >= 0.7;
+            isSuperNormal = colorsCountSorted[0] / wholePixels >= 0.8;
+
+            if (isSuperNormal && safeColor.a > 230) {
+                isNormal = false;
+            }
+
+            isSuperEmpty = isSuperNormal && isSuperEmpty && safeColor.a === 0;
+
+            console.log('Default check:', { isNormal, isSuperNormal, safeColor });
+        } while (level <= 9 && isNormal);
+
+        if (isSuperEmpty && level === 10) {
+            return 0;
         }
 
-        let canvas = await ResizedSharp(buffer, { width: 80, height: 80 });
+        return level - 1;
+    }
 
-        const metadata = await canvas.metadata();
-
-        this.logger.log(
-            `Processing icon url:'${url}' preferType:${preferType}. Metadata: ${JSON.stringify(
-                pick(metadata, ['format', 'width', 'height']),
-            )}`,
-        );
-
-        console.timeLog('pre parse icon');
+    async getRecommendedTypes(imageCanvas, preferType) {
+        const metadata = await imageCanvas.metadata();
 
         const ratio = metadata.width / metadata.height;
-
-        const toCover = () => {
-            this.logger.log(`Convert icon url:'${url}' to cover`);
-            canvas = canvas.resize(210 * 2, 210 * 2);
-            type = SITE_IMAGE_TYPE.cover;
-            score = Math.min(Math.round((metadata.width + metadata.height) / 8), 300);
-        };
-
-        const toPoster = () => {
-            this.logger.log(`Convert icon url:'${url}' to poster`);
-            canvas = canvas.resize(210 * 2, 110 * 2);
-            type = SITE_IMAGE_TYPE.poster;
-            score = Math.min(Math.round((metadata.width + metadata.height) / 8), 300);
-        };
-
-        const toIcon = () => {
-            this.logger.log(`Convert icon url:'${url}' to icon`);
-            canvas = canvas.resize(40 * 2, 40 * 2);
-            type = SITE_IMAGE_TYPE.icon;
-            score = Math.min(Math.round((metadata.width + metadata.height) / 2), 140);
-        };
-
-        const toSmallIcon = () => {
-            this.logger.log(`Convert icon url:'${url}' to small-icon`);
-            canvas = canvas.resize(40 * 2, 40 * 2).blur(30);
-            type = SITE_IMAGE_TYPE.small_icon;
-            score = Math.round((metadata.width + metadata.height) / 2);
-        };
 
         const recommendedTypes = [];
 
@@ -133,21 +275,85 @@ export class IconsProcessingService {
             recommendedTypes.push(SITE_IMAGE_TYPE.small_icon);
         }
 
-        if (recommendedTypes[0] === SITE_IMAGE_TYPE.cover) {
-            toCover();
-        } else if (recommendedTypes[0] === SITE_IMAGE_TYPE.poster) {
-            toPoster();
-        } else if (recommendedTypes[0] === SITE_IMAGE_TYPE.icon) {
-            toIcon();
-        } else {
-            toSmallIcon();
+        return recommendedTypes;
+    }
+
+    toCover(canvas) {
+        this.logger.log(`Convert icon to cover`);
+        return canvas.resize(210 * 2, 210 * 2);
+    }
+
+    toPoster(canvas) {
+        this.logger.log(`Convert icon to poster`);
+        return canvas.resize(210 * 2, 110 * 2);
+    }
+
+    toIcon(canvas) {
+        this.logger.log(`Convert icon to icon`);
+        return canvas.resize(40 * 2, 40 * 2);
+    }
+
+    toSmallIcon(canvas) {
+        this.logger.log(`Convert icon to small-icon`);
+        return canvas.resize(40 * 2, 40 * 2).blur(30);
+    }
+
+    async processingImage(url: string, preferType = 'unknown', bounds = false): Promise<any> {
+        console.time('pre parse icon');
+        const { data, request } = await firstValueFrom(this.httpService.get(url, { responseType: 'arraybuffer' }));
+
+        let buffer = data;
+        let type: string;
+        let score: number;
+
+        if (request.res.headers['content-type'] === 'image/x-icon') {
+            buffer = await icoToPng(data, 80);
+        }
+
+        let canvas = await ResizedSharp(buffer, { width: 80, height: 80 });
+
+        const metadata = await canvas.metadata();
+
+        this.logger.log(
+            `Processing icon url:'${url}' preferType:${preferType}. Metadata: ${JSON.stringify(
+                pick(metadata, ['format', 'width', 'height']),
+            )}`,
+        );
+
+        const recommendedTypes = await this.getRecommendedTypes(canvas, preferType);
+
+        switch (recommendedTypes[0]) {
+            case SITE_IMAGE_TYPE.cover:
+                canvas = this.toCover(canvas);
+                type = SITE_IMAGE_TYPE.cover;
+                score = Math.min(Math.round((metadata.width + metadata.height) / 8), 300);
+                break;
+            case SITE_IMAGE_TYPE.poster:
+                canvas = this.toPoster(canvas);
+                type = SITE_IMAGE_TYPE.poster;
+                score = Math.min(Math.round((metadata.width + metadata.height) / 8), 300);
+                break;
+            case SITE_IMAGE_TYPE.icon:
+                canvas = this.toIcon(canvas);
+                type = SITE_IMAGE_TYPE.icon;
+                score = Math.min(Math.round((metadata.width + metadata.height) / 2), 140);
+                break;
+            default:
+                canvas = this.toSmallIcon(canvas);
+                type = SITE_IMAGE_TYPE.small_icon;
+                score = Math.round((metadata.width + metadata.height) / 2);
+                break;
+        }
+
+        const safeZone = await this.checkSafeZone(canvas);
+
+        if (bounds) {
+            canvas = await this.addBounds(canvas, safeZone);
         }
 
         if (metadata.format === 'svg') {
             score += 100;
         }
-
-        console.timeLog('pre parse icon');
 
         const processingData = await canvas.png().toBuffer();
 
@@ -160,6 +366,7 @@ export class IconsProcessingService {
             recommendedTypes,
             width: metadata.width,
             height: metadata.height,
+            safeZone,
             data: processingData,
         };
     }
@@ -177,6 +384,7 @@ export class IconsProcessingService {
             recommendedTypes: image.recommendedTypes || [],
             width: image.width,
             height: image.height,
+            safeZone: image.safeZone,
         });
         this.logger.log(`Saved image '${image.baseUrl}' to cache with name '${name}'`);
     }
@@ -204,6 +412,7 @@ export class IconsProcessingService {
             recommendedTypes: dbRow.recommendedTypes,
             width: dbRow.width,
             height: dbRow.height,
+            safeZone: dbRow.safeZone,
             data: processingData,
         };
     }
