@@ -20,7 +20,7 @@ export default () => ({
         },
     },
     siteParse: {
-        siteMetaCacheLifetime: 60 * 60 * 1000,
-        iconsCacheLifetime: 60 * 60 * 1000,
+        siteMetaCacheLifetime: 7 * 24 * 60 * 60 * 1000,
+        iconsCacheLifetime: 7 * 24 * 60 * 60 * 1000,
     },
 });
