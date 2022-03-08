@@ -106,8 +106,13 @@ export class SiteParseController {
             'Image-Recommended-Types': image.recommendedTypes.join(','),
             'Image-Score': image.score,
             'Image-Base-Url': image.baseUrl,
-            'Image-Safe-Zone': image.safeZone,
         });
+
+        if (image.safeZone !== null) {
+            response.set({
+                'Image-Safe-Zone': image.safeZone,
+            });
+        }
 
         Readable.from(image.data).pipe(response);
     }

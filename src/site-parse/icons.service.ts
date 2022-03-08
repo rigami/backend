@@ -72,44 +72,18 @@ export class IconsProcessingService {
         ctx.rect(8 + 0.5, 8 + 0.5, metadata.width - 16 - 1, metadata.height - 16 - 1);
         ctx.stroke();
 
-        ctx.strokeStyle = 'rgba(115,255,0,1)';
-        ctx.beginPath();
-        ctx.lineWidth = 1;
-        ctx.rect(safeZone + 0.5, safeZone + 0.5, metadata.width - safeZone * 2 - 1, metadata.height - safeZone * 2 - 1);
-        ctx.stroke();
-
-        /* ctx.strokeStyle = 'rgb(238,0,255)';
-        ctx.beginPath();
-        ctx.lineWidth = 1;
-        ctx.rect(
-            safeZone + 1 + 0.5,
-            safeZone + 1 + 0.5,
-            metadata.width - safeZone * 2 - 2 - 1,
-            metadata.height - safeZone * 2 - 2 - 1,
-        );
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgb(0,247,255)';
-        ctx.beginPath();
-        ctx.lineWidth = 1;
-        ctx.rect(
-            safeZone + 2 + 0.5,
-            safeZone + 2 + 0.5,
-            metadata.width - safeZone * 2 - 4 - 1,
-            metadata.height - safeZone * 2 - 4 - 1,
-        );
-        ctx.stroke();
-
-        ctx.strokeStyle = 'rgb(255,204,0)';
-        ctx.beginPath();
-        ctx.lineWidth = 1;
-        ctx.rect(
-            safeZone + 3 + 0.5,
-            safeZone + 3 + 0.5,
-            metadata.width - safeZone * 2 - 6 - 1,
-            metadata.height - safeZone * 2 - 6 - 1,
-        );
-        ctx.stroke(); */
+        if (safeZone !== null) {
+            ctx.strokeStyle = 'rgba(115,255,0,1)';
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.rect(
+                safeZone + 0.5,
+                safeZone + 0.5,
+                metadata.width - safeZone * 2 - 1,
+                metadata.height - safeZone * 2 - 1,
+            );
+            ctx.stroke();
+        }
 
         const buffer = canvas.toBuffer();
 
@@ -220,7 +194,7 @@ export class IconsProcessingService {
                         level += 1;
                     }
                 } else {
-                    isNormal = false
+                    isNormal = false;
                 }
 
                 continue;
@@ -238,12 +212,14 @@ export class IconsProcessingService {
 
             isSuperEmpty = isSuperNormal && isSuperEmpty && safeColor.a === 0;
 
-            console.log('Default check:', { isNormal, isSuperNormal, safeColor });
+            console.log('Default check:', { isNormal, isSuperNormal, safeColor, isSuperEmpty });
         } while (level <= 9 && isNormal);
 
         if (isSuperEmpty && level === 10) {
-            return 0;
+            return null;
         }
+
+        if (level === 1 && !isSuperEmpty) return null;
 
         return level - 1;
     }
