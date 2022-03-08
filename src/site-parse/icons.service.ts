@@ -90,6 +90,34 @@ export class IconsProcessingService {
         return imageCanvas.composite([{ input: buffer }]);
     }
 
+    async addSafeZone(imageCanvas, safeZone) {
+        console.log('Add safe zone', 8 - safeZone);
+
+        const shift = Math.max(8 - safeZone, 0);
+
+        let img = imageCanvas.clone();
+
+        const metadata = await Sharp(await img.toBuffer()).metadata();
+
+        img = img.resize(metadata.width - shift * 2, metadata.height - shift * 2);
+
+        const buffer = await img.toBuffer();
+
+        const bg = await Sharp({
+            create: {
+                width: metadata.width,
+                height: metadata.height,
+                channels: 4,
+                background: { r: 0, g: 0, b: 0, alpha: 0 },
+            },
+        })
+            .png()
+            .composite([{ input: buffer }])
+            .toBuffer();
+
+        return Sharp(bg);
+    }
+
     async checkSafeZone(canvas) {
         const clone = canvas.clone();
 
@@ -322,6 +350,10 @@ export class IconsProcessingService {
         }
 
         const safeZone = await this.checkSafeZone(canvas);
+
+        if (safeZone !== null) {
+            canvas = await this.addSafeZone(canvas, safeZone);
+        }
 
         if (bounds) {
             canvas = await this.addBounds(canvas, safeZone);
