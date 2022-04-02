@@ -39,8 +39,8 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
         if (
             user.status === STATUS.deleted ||
             user.status === STATUS.blocked ||
-            device.status === STATUS.deleted ||
-            device.status === STATUS.blocked
+            device?.status === STATUS.deleted ||
+            device?.status === STATUS.blocked
         ) {
             throw new UnauthorizedException();
         }
@@ -56,7 +56,7 @@ export class LocalStrategy extends PassportStrategy(Strategy) {
                 id: device?.id,
                 userAgent: device?.userAgent || request.headers['user-agent'],
                 type: device?.type || request.headers['device-type'],
-                status: device.status,
+                status: device?.status,
                 sign: device?.sign || request.headers['device-sign'],
                 platform: device?.platform || request.headers['device-platform'],
                 isVerify: isVerifyDevice,
