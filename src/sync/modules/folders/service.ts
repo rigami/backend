@@ -31,8 +31,10 @@ export class FoldersSyncService extends ItemSyncService<Folder, FolderSnapshot> 
     async processSequentially(folders, processFolder): Promise<any> {
         let syncedFoldersQueue = [...folders];
         let pairFoldersIds = {};
+        let isEnd = false;
 
-        while (syncedFoldersQueue.length !== 0) {
+        while (!isEnd) {
+            isEnd = true;
             const pairFoldersLevelIds = {};
 
             const rootFolders = syncedFoldersQueue.filter((entity) => {
@@ -51,6 +53,7 @@ export class FoldersSyncService extends ItemSyncService<Folder, FolderSnapshot> 
             pairFoldersIds = merge(pairFoldersIds, pairFoldersLevelIds);
 
             for (const entity of rootFolders) {
+                isEnd = false;
                 const pair = await processFolder({
                     ...entity,
                     payload: {
@@ -62,6 +65,10 @@ export class FoldersSyncService extends ItemSyncService<Folder, FolderSnapshot> 
 
                 pairFoldersIds[pair.localId] = pair.cloudId;
             }
+        }
+
+        if (syncedFoldersQueue.length !== 0) {
+            console.warn('Exist not synced folders:', syncedFoldersQueue);
         }
 
         return pairFoldersIds;
