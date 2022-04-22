@@ -6,6 +6,7 @@ import { ReturnModelType } from '@typegoose/typegoose';
 import { DevicesService } from '@/auth/devices/service';
 import { v4 as UUIDv4 } from 'uuid';
 import { STATUS } from '@/auth/utils/status.enum';
+import hashPassword from '@/auth/utils/hashPassword';
 
 @Injectable()
 export class UsersService {
@@ -17,38 +18,60 @@ export class UsersService {
         private devicesService: DevicesService,
     ) {}
 
-    async findById(userId: string): Promise<User | null> {
+    async findById(userId: string, { includeHashedPassword = false } = {}): Promise<User | null> {
         const user = await this.userModel.findOne({ id: userId });
 
         if (!user) return null;
 
-        return {
-            id: user.id,
-            username: user.username,
-            password: user.password,
-            role: user.role,
-            status: user.status,
-            statusChangeDate: user.statusChangeDate,
-            createDate: user.createDate,
-        };
+        if (includeHashedPassword) {
+            return {
+                id: user.id,
+                username: user.username,
+                password: user.password,
+                role: user.role,
+                status: user.status,
+                statusChangeDate: user.statusChangeDate,
+                createDate: user.createDate,
+            };
+        } else {
+            return {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                status: user.status,
+                statusChangeDate: user.statusChangeDate,
+                createDate: user.createDate,
+            };
+        }
     }
 
-    async findByUsername(username: string): Promise<User | null> {
+    async findByUsername(username: string, { includeHashedPassword = false } = {}): Promise<User | null> {
         const user = await this.userModel.findOne({
             username,
         });
 
         if (!user) return null;
 
-        return {
-            id: user.id,
-            username: user.username,
-            password: user.password,
-            role: user.role,
-            status: user.status,
-            statusChangeDate: user.statusChangeDate,
-            createDate: user.createDate,
-        };
+        if (includeHashedPassword) {
+            return {
+                id: user.id,
+                username: user.username,
+                password: user.password,
+                role: user.role,
+                status: user.status,
+                statusChangeDate: user.statusChangeDate,
+                createDate: user.createDate,
+            };
+        } else {
+            return {
+                id: user.id,
+                username: user.username,
+                role: user.role,
+                status: user.status,
+                statusChangeDate: user.statusChangeDate,
+                createDate: user.createDate,
+            };
+        }
     }
 
     async deleteById(userId: string): Promise<void> {
@@ -72,16 +95,16 @@ export class UsersService {
         this.logger.log(`Creating user '${username}'...`);
 
         try {
+            const hashedPassword = await hashPassword.hash(password);
             const user = await this.userModel.create({
                 username,
-                password,
+                password: hashedPassword,
                 role,
             });
 
             return {
                 id: user.id,
                 username: user.username,
-                password: user.password,
                 role: user.role,
                 status: user.status,
                 statusChangeDate: user.statusChangeDate,

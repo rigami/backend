@@ -6,6 +6,8 @@ import { Device, DEVICE_TYPE } from '@/auth/devices/entities/device';
 import { ROLE, User } from '@/auth/users/entities/user';
 import { RegistrationInfo } from '@/auth/auth/entities/registrationInfo';
 import { STATUS } from '@/auth/utils/status.enum';
+import { omit } from 'lodash';
+import hashPassword from '@/auth/utils/hashPassword';
 
 @Injectable()
 export class AuthService {
@@ -184,13 +186,14 @@ export class AuthService {
     }
 
     async validateUser(username: string, password: string): Promise<User> {
-        const user = await this.usersService.findByUsername(username);
+        const user = await this.usersService.findByUsername(username, { includeHashedPassword: true });
 
-        if (user && user.role !== ROLE.virtual_user && user.password === password) {
-            const { password, ...result } = user;
-            return result;
-        }
+        if (user && user.role !== ROLE.virtual_user) return null;
 
-        return null;
+        const isValidPassword = await hashPassword.isSame(user.password, password);
+
+        if (!isValidPassword) return null;
+
+        return omit(user, ['password']);
     }
 }
