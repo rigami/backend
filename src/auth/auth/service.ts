@@ -48,6 +48,16 @@ export class AuthService {
         return await this.usersService.create(registrationInfo.username, registrationInfo.password, ROLE.user);
     }
 
+    async setPassword(registrationInfo: RegistrationInfo) {
+        const user = await this.usersService.findByUsername(registrationInfo.username, { includeHashedPassword: true });
+
+        if (user && user.password !== '') {
+            throw new Error(`User ${registrationInfo.username} already has a password`);
+        }
+
+        await this.usersService.updatePassword(registrationInfo.username, registrationInfo.password);
+    }
+
     async login(user: User, device: Device) {
         device = device && (await this.devicesService.findById(device.id));
 
@@ -188,9 +198,9 @@ export class AuthService {
     async validateUser(username: string, password: string): Promise<User> {
         const user = await this.usersService.findByUsername(username, { includeHashedPassword: true });
 
-        if (user && user.role !== ROLE.virtual_user) return null;
+        if (!user || user.role === ROLE.virtual_user) return null;
 
-        const isValidPassword = await hashPassword.isSame(user.password, password);
+        const isValidPassword = await hashPassword.isSame(password, user.password);
 
         if (!isValidPassword) return null;
 

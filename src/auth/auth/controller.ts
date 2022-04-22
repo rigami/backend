@@ -66,6 +66,18 @@ export class AuthController {
         return { deviceSign: device.sign };
     }
 
+    @Post('set-password')
+    @HttpCode(200)
+    async setPassword(@Body() registrationInfo: RegistrationInfo) {
+        try {
+            await this.authService.setPassword(registrationInfo);
+        } catch (e) {
+            throw new BadRequestException(e.message);
+        }
+
+        return;
+    }
+
     @Post('registration')
     @HttpCode(200)
     async registration(@Body() registrationInfo: RegistrationInfo) {

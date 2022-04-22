@@ -91,6 +91,26 @@ export class UsersService {
         return this.create(UUIDv4(), UUIDv4(), ROLE.virtual_user);
     }
 
+    async updatePassword(username: string, password: string) {
+        this.logger.log(`Update password for user '${username}'...`);
+
+        try {
+            const hashedPassword = await hashPassword.hash(password);
+            await this.userModel.updateOne(
+                {
+                    username,
+                },
+                {
+                    $set: {
+                        password: hashedPassword,
+                    },
+                },
+            );
+        } catch (err) {
+            throw new Error('UNKNOWN_ERROR');
+        }
+    }
+
     async create(username: string, password: string, role: ROLE = ROLE.virtual_user): Promise<User | null> {
         this.logger.log(`Creating user '${username}'...`);
 

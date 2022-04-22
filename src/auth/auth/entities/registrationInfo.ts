@@ -1,5 +1,4 @@
-import { IsEnum, IsString, IsUUID } from 'class-validator';
-import { DEVICE_TYPE } from '@/auth/devices/entities/device';
+import { IsString } from 'class-validator';
 
 export class RegistrationInfo {
     @IsString() readonly username!: string;
