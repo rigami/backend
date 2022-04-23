@@ -79,11 +79,7 @@ export class SiteParseController {
 
         if (!image) {
             this.logger.log(`Not find image in cache. Processing...`);
-            image = await this.iconsProcessingService.processingImage(
-                query.url,
-                query.type?.replace('-', '_'),
-                'bounds' in query,
-            );
+            image = await this.iconsProcessingService.processingImage(query.url, query.type, 'bounds' in query);
 
             try {
                 await this.iconsProcessingService.saveImageToCache(image);
