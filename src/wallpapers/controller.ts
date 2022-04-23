@@ -15,34 +15,39 @@ export class WallpapersController {
     @UseGuards(JwtAccessAuthGuard)
     @Get('search')
     async search(
-        @Query('type') typeWallpaper: type[],
+        @Query('type') typeWallpaper: string,
         @Query('query') query: string,
         @Query('count') count: number,
         @CurUser() user: User,
     ) {
-        return await this.wallpapersService.search(query, +count || 10, typeWallpaper, user);
+        return await this.wallpapersService.search(query, +count || 10, typeWallpaper.split(',') as type[], user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('random')
     async random(
-        @Query('type') typeWallpaper: type[],
+        @Query('type') typeWallpaper: string,
         @Query('query') query: string,
         @Query('count') count: number,
         @CurUser() user: User,
     ) {
-        return await this.wallpapersService.random(query, +count || 10, typeWallpaper, user);
+        return await this.wallpapersService.random(query, +count || 10, typeWallpaper.split(',') as type[], user);
     }
 
     @UseGuards(JwtAccessAuthGuard)
     @Get('collection/:collectionName')
     async collection(
         @Param('collectionName') collectionName: string,
-        @Query('type') typeWallpaper: type[],
+        @Query('type') typeWallpaper: string,
         @Query('count') count: number,
         @CurUser() user: User,
     ) {
-        return await this.wallpapersService.collection(collectionName, +count || 10, typeWallpaper, user);
+        return await this.wallpapersService.collection(
+            collectionName,
+            +count || 10,
+            typeWallpaper.split(',') as type[],
+            user,
+        );
     }
 
     @UseGuards(JwtAccessAuthGuard)

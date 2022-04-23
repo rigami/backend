@@ -93,7 +93,7 @@ export class WallpapersService {
             {
                 $match: {
                     collectionType: collection,
-                    type: types,
+                    type: { $in: types },
                 },
             },
             { $sample: { size: count } },
@@ -192,7 +192,7 @@ export class WallpapersService {
         let wallpapers = [];
 
         if (!withoutCache) {
-            const countInCache = await this.wallpaperCacheModel.find({ query, type: types }).count();
+            const countInCache = await this.wallpaperCacheModel.find({ query, type: { $in: types } }).count();
             console.log('countInCache:', countInCache);
 
             if (countInCache > count * 3) {
@@ -202,7 +202,7 @@ export class WallpapersService {
                     {
                         $match: {
                             query,
-                            type: types,
+                            type: { $in: types },
                         },
                     },
                     { $sample: { size: count } },
