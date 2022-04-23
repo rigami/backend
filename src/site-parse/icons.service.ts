@@ -374,7 +374,7 @@ export class IconsProcessingService {
             recommendedTypes,
             width: metadata.width,
             height: metadata.height,
-            safeZone,
+            safeZone: type === SITE_IMAGE_TYPE.small_icon ? null : safeZone,
             data: processingData,
         };
     }
