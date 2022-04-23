@@ -9,6 +9,7 @@ import { plainToClass } from 'class-transformer';
 import base64url from 'base64url';
 import { STATUS } from '@/auth/utils/status.enum';
 import { JwtService } from '@nestjs/jwt';
+import { omitBy, isNull } from 'lodash';
 
 @Injectable()
 export class DevicesService {
@@ -101,7 +102,10 @@ export class DevicesService {
     }
 
     async getAllDevices(user: User, status: STATUS = STATUS.active): Promise<Device[]> {
-        const devices = await this.deviceModel.find({ holderUserId: user.id, status }).lean().exec();
+        const devices = await this.deviceModel
+            .find(omitBy({ holderUserId: user.id, status }, isNull))
+            .lean()
+            .exec();
 
         return devices.map((device) => plainToClass(Device, device, { excludeExtraneousValues: true }));
     }

@@ -1,15 +1,4 @@
-import {
-    Controller,
-    Delete,
-    Get,
-    Headers,
-    HttpCode,
-    Logger,
-    Param,
-    Query,
-    Res,
-    UseGuards,
-} from '@nestjs/common';
+import { Controller, Delete, Get, Headers, HttpCode, Logger, Param, Query, Res, UseGuards } from '@nestjs/common';
 import { InjectModel } from 'nestjs-typegoose';
 import { ReturnModelType } from '@typegoose/typegoose';
 import { JwtAccessAuthGuard } from '@/auth/auth/strategies/jwt/auth.guard';
@@ -24,6 +13,7 @@ import { Devices } from '@/auth/auth/strategies/devices/device.decorator';
 import { DEVICE_TYPE } from '@/auth/devices/entities/device';
 import { UserSchema } from '@/auth/users/schemas/user';
 import { UsersService } from '@/auth/users/service';
+import { DevicesService } from '@/auth/devices/service';
 
 @UseGuards(JwtAccessAuthGuard, RolesGuard, DevicesGuard)
 @Controller('v1/users')
@@ -32,6 +22,7 @@ export class UsersListController {
 
     constructor(
         private usersService: UsersService,
+        private devicesService: DevicesService,
         @InjectModel(UserSchema)
         private readonly userModel: ReturnModelType<typeof UserSchema>,
     ) {}
@@ -54,15 +45,28 @@ export class UsersListController {
             idInSource: new RegExp(filter.idInSource || '', 'i'),
         };
 
-        const res = await this.userModel
+        let res: Array<any> = await this.userModel
             .find(mongoQuery)
             .sort({
                 [sort[0] || 'createDate']: sort[1] === 'ASC' ? 1 : -1,
             })
             .skip(range[0])
-            .limit(range[1] - range[0] + 1);
+            .limit(range[1] - range[0] + 1)
+            .lean()
+            .exec();
 
         const total = await this.userModel.find(mongoQuery).count();
+
+        res = await Promise.all(
+            res.map(async (user) => {
+                const devices = await this.devicesService.getAllDevices(user, null);
+
+                return {
+                    ...omit(user, ['password']),
+                    devices,
+                };
+            }),
+        );
 
         response.set({
             'Content-Range': `wallpapers/black-list ${range[0] + 1}-${range[0] + res.length}/${total}`,
