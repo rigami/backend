@@ -10,6 +10,7 @@ services:
       - DATABASE_USER
       - DATABASE_PASSWORD
       - DATABASE_HOST
+      - JWT_SECRET_KEY
     extra_hosts:
       - "database:151.248.112.166"
     networks:
