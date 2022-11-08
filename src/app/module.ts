@@ -11,6 +11,8 @@ import configuration from '@/config/configuration';
 import { ConfigModule } from '@nestjs/config';
 import { WallpapersModule } from '@/wallpapers/module';
 import { ConsoleModule } from '@/console/module';
+import { SentryModule } from '@ntegral/nestjs-sentry';
+import packageJson from '../../package.json';
 
 const MONGO_URI = `mongodb://${process.env.DATABASE_HOST || '127.0.0.1'}:27017`;
 const MONGO_AUTH =
@@ -20,9 +22,23 @@ const MONGO_AUTH =
               auth: { username: process.env.DATABASE_USER, password: process.env.DATABASE_PASSWORD },
           }
         : {};
+const SENTRY_DSN = 'https://3588c3ab8b244beb943e58e00a92107c@o527213.ingest.sentry.io/4504125314170880';
 
 @Module({
     imports: [
+        SentryModule.forRoot({
+            dsn: SENTRY_DSN,
+            debug: process.env.NODE_ENV === 'development',
+            environment: process.env.NODE_ENV || 'unknown',
+            release: packageJson.version,
+            beforeSend: (event) => {
+                if (['log', 'info'].includes(event.level)) {
+                    return null;
+                } else {
+                    return event;
+                }
+            },
+        }),
         ConfigModule.forRoot({
             isGlobal: true,
             load: [configuration],
