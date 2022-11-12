@@ -1,5 +1,5 @@
 # stage 1 as builder
-FROM node:latest as builder
+FROM node:18.10.0 as builder
 
 WORKDIR /app
 
