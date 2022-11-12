@@ -16,7 +16,7 @@ services:
     networks:
       - web
     volumes:
-      - ./icons-cache/:/icons-cache/
+      - /data/rigami-icons-cache/:/icons-cache/
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.experimental-backend.rule=Host(`api.rigami.io`) && PathPrefix(`/v1`)"
