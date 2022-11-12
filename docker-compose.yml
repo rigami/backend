@@ -3,7 +3,7 @@ networks:
   web:
     external: true
 services:
-  experimental-backend:
+  rigami-backend:
     build: .
     restart: unless-stopped
     environment:
@@ -19,8 +19,8 @@ services:
       - /data/rigami-icons-cache/:/icons-cache/
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.experimental-backend.rule=Host(`api.rigami.io`) && PathPrefix(`/v1`)"
-      - "traefik.http.routers.experimental-backend.entrypoints=web-http,web-https"
-      - "traefik.http.routers.experimental-backend.tls=true"
-      - "traefik.http.routers.experimental-backend.tls.certresolver=letsEncrypt"
-      - "traefik.http.services.experimental-backend-service.loadbalancer.server.port=8080"
+      - "traefik.http.routers.rigami-backend.rule=Host(`api.rigami.io`) && PathPrefix(`/v1`)"
+      - "traefik.http.routers.rigami-backend.entrypoints=web-http,web-https"
+      - "traefik.http.routers.rigami-backend.tls=true"
+      - "traefik.http.routers.rigami-backend.tls.certresolver=letsEncrypt"
+      - "traefik.http.services.rigami-backend-service.loadbalancer.server.port=8080"
